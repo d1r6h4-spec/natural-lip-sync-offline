@@ -14,4 +14,5 @@ export const ENV = {
   replicateVideoRetalkingVersion:
     process.env.REPLICATE_VIDEO_RETALKING_VERSION ??
     "db5a650c807b007dc5f9e5abe27c53e1b62880d1f94d218d27ce7fa802711d67",
+  replicateMotionTransferModel: "kwaivgi/kling-v2.6-motion-control",
 };

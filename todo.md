@@ -54,3 +54,12 @@
 - [x] Memungkinkan pemulihan parameter draf (media, audio, trim, style) saat tombol draf ditekan
 - [x] Menguji kompilasi TypeScript, lint, dan fungsionalitas draf
 - [x] Menyimpan checkpoint fitur draf lokal
+- [x] Merancang alur pemilihan video referensi gerak tubuh (Motion Transfer) di layar Create
+- [x] Menambahkan state motionSource dan parameter motionWeight pada frontend dan backend lipsync
+- [x] Memperluas adapter server backend untuk mendukung parameter motion transfer dan video referensi gerak
+- [x] Menguji kompilasi TypeScript, lint, dan fungsionalitas motion transfer
+- [x] Menyimpan checkpoint fitur full-body motion transfer
+- [x] Mengubah endpoint Replicate motion transfer dari version-based ke model identifier `kwaivgi/kling-v2.6-motion-control`
+- [x] Menghapus kebutuhan `REPLICATE_MOTION_TRANSFER_VERSION` dan menggunakan API resmi model Replicate
+- [x] Menjalankan pengujian koneksi dan uji inference motion transfer
+- [x] Menyimpan checkpoint final migrasi model motion-control

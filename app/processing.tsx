@@ -28,6 +28,9 @@ type ProcessingParams = {
   trimEnd?: string;
   videoTrimStart?: string;
   videoTrimEnd?: string;
+  motionUri?: string;
+  motionName?: string;
+  motionWeight?: string;
 };
 
 function first(value: string | string[] | undefined) {
@@ -98,7 +101,8 @@ export default function ProcessingScreen() {
   const failedMessage = rawError ? friendlyLipSyncError(rawError) : null;
   const statusLabel = status === "queued" ? "queued" : status === "processing" ? "rendering" : status ?? "connecting";
   const stageIndex = Math.min(stages.length - 1, Math.floor(progress / 25));
-  const sourceLabel = params.sourceType === "video" ? "Video source" : "Portrait source";
+  const hasMotionTransfer = Boolean(params.motionUri);
+  const sourceLabel = params.sourceType === "video" ? "Video source" : hasMotionTransfer ? "Photo + motion video" : "Portrait source";
   const progressLabel = `${progress}%`;
   const isEstimated = status === "queued" || status === "processing";
 
@@ -122,7 +126,7 @@ export default function ProcessingScreen() {
       <View style={styles.container}>
         <View style={styles.topRow}>
           <View style={[styles.brandMark, { backgroundColor: `${colors.primary}18` }]}><IconSymbol name="sparkles" size={20} color={colors.primary} /></View>
-          <Text style={[styles.topLabel, { color: colors.muted }]}>SADTALKER ENGINE</Text>
+          <Text style={[styles.topLabel, { color: colors.muted }]}>{hasMotionTransfer ? "MOTION CONTROL ENGINE" : params.sourceType === "video" ? "VIDEO RETALKING ENGINE" : "SADTALKER ENGINE"}</Text>
           <View style={{ flex: 1 }} />
           <Text style={[styles.topLabel, { color: colors.muted }]}>{statusLabel.toUpperCase()}</Text>
         </View>
@@ -135,7 +139,7 @@ export default function ProcessingScreen() {
             </View>
           </View>
           <Text style={[styles.title, { color: colors.foreground }]}>{failedMessage ? providerCreditError ? "Provider credit required" : "Render needs attention" : "Building your sync"}</Text>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>{failedMessage ? failedMessage : params.sourceType === "video" ? "The AI is preserving your video motion while matching the reference audio. This can take about a minute." : "SadTalker is animating your image from the reference audio. This can take about a minute."}</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>{failedMessage ? failedMessage : hasMotionTransfer ? "The AI is transferring full-body movement from your reference video, then preparing the selected audio track. This may take several minutes." : params.sourceType === "video" ? "The AI is preserving your video motion while matching the reference audio. This can take about a minute." : "SadTalker is animating your image from the reference audio. This can take about a minute."}</Text>
         </View>
 
         <View style={styles.progressMeter}>
@@ -180,6 +184,7 @@ export default function ProcessingScreen() {
           <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>AUDIO</Text><Text style={[styles.metaValue, { color: colors.foreground }]} numberOfLines={1}>{params.audioName ?? "Voice track"}</Text></View>
           <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>AUDIO CLIP</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.trimStart ?? "0"} – {params.trimEnd ?? "1"}</Text></View>
           {params.sourceType === "video" ? <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>VIDEO CLIP</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.videoTrimStart ?? "0"} – {params.videoTrimEnd ?? "1"}</Text></View> : null}
+          {hasMotionTransfer ? <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>MOTION</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.motionName ?? "Reference video"} · {params.motionWeight ?? "Balanced"}</Text></View> : null}
         </View>
 
         <Pressable onPress={handleCancel} disabled={canceling} style={({ pressed }) => [styles.cancelButton, pressed && { opacity: 0.6 }, canceling && { opacity: 0.5 }]}>

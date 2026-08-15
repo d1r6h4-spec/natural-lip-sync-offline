@@ -5,6 +5,8 @@ export type LipSyncDraft = {
   title: string;
   sourceUri: string | null;
   sourceType: "image" | "video" | null;
+  motionUri?: string | null;
+  motionName?: string | null;
   audioUri: string | null;
   audioName: string | null;
   trimStart: number;
@@ -13,6 +15,7 @@ export type LipSyncDraft = {
   videoTrimEnd: number;
   style: "Natural" | "Expressive" | "Calm";
   intensity: "Low" | "Balanced" | "High";
+  motionWeight?: "Subtle" | "Balanced" | "Strong";
   updatedAt: string;
 };
 

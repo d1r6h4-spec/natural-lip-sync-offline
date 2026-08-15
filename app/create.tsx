@@ -69,6 +69,7 @@ export default function CreateScreen() {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder);
   const [media, setMedia] = useState<SourceMedia | null>(null);
+  const [motionSource, setMotionSource] = useState<SourceMedia | null>(null);
   const [audio, setAudio] = useState<AudioSource | null>(null);
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(1);
@@ -78,6 +79,7 @@ export default function CreateScreen() {
   const [libraryCategory, setLibraryCategory] = useState<"All" | AudioTrack["category"]>("All");
   const [style, setStyle] = useState<(typeof stylesList)[number]["key"]>("Natural");
   const [intensity, setIntensity] = useState<"Low" | "Balanced" | "High">("Balanced");
+  const [motionWeight, setMotionWeight] = useState<"Subtle" | "Balanced" | "Strong">("Balanced");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draftsModalOpen, setDraftsModalOpen] = useState(false);
   const [draftsList, setDraftsList] = useState<LipSyncDraft[]>([]);
@@ -101,6 +103,8 @@ export default function CreateScreen() {
       title,
       sourceUri: media?.uri ?? null,
       sourceType: media?.type ?? null,
+      motionUri: motionSource?.uri ?? null,
+      motionName: motionSource?.fileName ?? null,
       audioUri: audio?.uri ?? null,
       audioName: audio?.name ?? null,
       trimStart,
@@ -109,6 +113,7 @@ export default function CreateScreen() {
       videoTrimEnd,
       style,
       intensity,
+      motionWeight,
     });
     await loadDrafts();
     Alert.alert("Draft saved", "Your project draft has been stored locally. You can resume it anytime from Create.");
@@ -117,6 +122,9 @@ export default function CreateScreen() {
   const handleApplyDraft = (draft: LipSyncDraft) => {
     if (draft.sourceUri && draft.sourceType) {
       setMedia({ uri: draft.sourceUri, type: draft.sourceType });
+    }
+    if (draft.motionUri) {
+      setMotionSource({ uri: draft.motionUri, type: "video", fileName: draft.motionName ?? "Motion reference.mp4" });
     }
     if (draft.audioUri && draft.audioName) {
       setAudio({ uri: draft.audioUri, name: draft.audioName });
@@ -127,6 +135,7 @@ export default function CreateScreen() {
     setVideoTrimEnd(draft.videoTrimEnd);
     setStyle(draft.style);
     setIntensity(draft.intensity);
+    setMotionWeight(draft.motionWeight ?? "Balanced");
     setDraftsModalOpen(false);
     Alert.alert("Draft loaded", `Resumed "${draft.title}" successfully.`);
   };
@@ -200,6 +209,23 @@ export default function CreateScreen() {
     }
   };
 
+  const pickMotionReference = async () => {
+    if (media?.type === "video") {
+      Alert.alert("Photo target required", "Full-body motion transfer currently applies movement from a reference video to a portrait photo. Use the existing video lip-sync mode for a video target.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: false,
+      quality: 1,
+      videoMaxDuration: 30,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setMotionSource({ uri: asset.uri, type: "video", fileName: asset.fileName ?? "Motion reference.mp4" });
+    }
+  };
+
   const pickAudio = async () => {
     const result = await DocumentPicker.getDocumentAsync({
       type: "audio/*",
@@ -254,14 +280,22 @@ export default function CreateScreen() {
       Alert.alert("Add an audio track", "Upload an audio file or record a voice track before starting.");
       return;
     }
+    if (motionSource && media.type !== "image") {
+      Alert.alert("Photo target required", "Choose a portrait photo to use full-body motion transfer, or remove the motion reference to continue with video lip-sync.");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       const sourceMedia = await uploadLocalMedia(media.uri, media.fileName ?? `face-source.${media.type === "image" ? "jpg" : "mp4"}`, media.type);
       const audioMedia = await uploadLocalMedia(audio.uri, audio.name || "voice-track.m4a", "audio");
+      const motionMedia = motionSource
+        ? await uploadLocalMedia(motionSource.uri, motionSource.fileName ?? "motion-reference.mp4", "video")
+        : null;
       const job = await createJobMutation.mutateAsync({
         ...(sourceMedia.key ? { sourceKey: sourceMedia.key } : { sourceUrl: sourceMedia.url }),
         ...(audioMedia.key ? { audioKey: audioMedia.key } : { audioUrl: audioMedia.url }),
+        ...(motionMedia ? (motionMedia.key ? { motionKey: motionMedia.key } : { motionUrl: motionMedia.url }) : {}),
         sourceType: media.type,
         style,
         intensity,
@@ -269,6 +303,7 @@ export default function CreateScreen() {
         trimEnd,
         videoTrimStart,
         videoTrimEnd,
+        motionWeight,
       });
 
       router.push({
@@ -279,12 +314,15 @@ export default function CreateScreen() {
           sourceType: media.type,
           audioUri: audio.uri,
           audioName: audio.name,
+          motionUri: motionSource?.uri,
+          motionName: motionSource?.fileName,
           style,
           intensity,
           trimStart: String(trimStart),
           trimEnd: String(trimEnd),
           videoTrimStart: String(videoTrimStart),
           videoTrimEnd: String(videoTrimEnd),
+          motionWeight,
         },
       });
     } catch (error) {
@@ -350,7 +388,17 @@ export default function CreateScreen() {
           />
         ) : null}
 
-        <Text style={[styles.sectionTitle, { color: colors.muted }]}>2. AUDIO TRACK</Text>
+        <Text style={[styles.sectionTitle, { color: colors.muted }]}>2. MOTION REFERENCE</Text>
+        <Pressable onPress={pickMotionReference} style={({ pressed }) => [styles.mediaCard, { borderColor: motionSource ? colors.primary : colors.border, backgroundColor: colors.surface }, pressed && { opacity: 0.78 }]}>
+          <View style={[styles.mediaPlaceholder, { backgroundColor: motionSource ? `${colors.primary}16` : "transparent" }]}>
+            <View style={[styles.addCircle, { backgroundColor: `${colors.primary}18` }]}><IconSymbol name="video.fill" size={25} color={colors.primary} /></View>
+            <Text style={[styles.mediaTitle, { color: colors.foreground }]}>{motionSource ? motionSource.fileName ?? "Motion video selected" : "Choose a movement video"}</Text>
+            <Text style={[styles.helper, { color: colors.muted }]}>{motionSource ? "Full-body movement reference · Tap to replace" : "Optional · 3–30 seconds · one visible person works best"}</Text>
+          </View>
+        </Pressable>
+        {motionSource ? <Pressable onPress={() => setMotionSource(null)}><Text style={[styles.removeText, { color: colors.error, textAlign: "right", marginTop: 6 }]}>Remove motion reference</Text></Pressable> : null}
+
+        <Text style={[styles.sectionTitle, { color: colors.muted }]}>3. AUDIO TRACK</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.audioHeader}>
             <View style={[styles.audioIcon, { backgroundColor: `${colors.primary}16` }]}><IconSymbol name="mic.fill" size={19} color={colors.primary} /></View>
@@ -385,7 +433,7 @@ export default function CreateScreen() {
           {audio ? <AudioTrimmer duration={audioDuration || audio.duration || 1} startRatio={trimStart} endRatio={trimEnd} isPlaying={audioStatus.playing} colors={colors} onStartChange={setTrimStart} onEndChange={setTrimEnd} onPreview={previewTrim} /> : null}
         </View>
 
-        <Text style={[styles.sectionTitle, { color: colors.muted }]}>3. MOTION PROFILE</Text>
+        <Text style={[styles.sectionTitle, { color: colors.muted }]}>4. MOTION PROFILE</Text>
         <View style={styles.styleGrid}>
           {stylesList.map((item) => (
             <Pressable key={item.key} onPress={() => setStyle(item.key)} style={({ pressed }) => [styles.styleCard, { backgroundColor: colors.surface, borderColor: style === item.key ? colors.primary : colors.border }, pressed && { opacity: 0.72 }]}>
@@ -405,6 +453,18 @@ export default function CreateScreen() {
             ))}
           </View>
         </View>
+        {motionSource ? (
+          <View style={styles.intensityRow}>
+            <View style={styles.flexOne}><Text style={[styles.cardTitle, { color: colors.foreground }]}>Body motion strength</Text><Text style={[styles.helper, { color: colors.muted }]}>Controls how closely the generated body follows the reference.</Text></View>
+            <View style={styles.intensityOptions}>
+              {(["Subtle", "Balanced", "Strong"] as const).map((item) => (
+                <Pressable key={item} onPress={() => setMotionWeight(item)} style={({ pressed }) => [styles.intensityPill, { backgroundColor: motionWeight === item ? colors.primary : colors.surface, borderColor: motionWeight === item ? colors.primary : colors.border }, pressed && { opacity: 0.72 }]}>
+                  <Text style={[styles.intensityText, { color: motionWeight === item ? "#fff" : colors.muted }]}>{item}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.actionButtonsRow}>
           <Pressable onPress={handleSaveDraft} style={({ pressed }) => [styles.secondaryActionButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.75 }]}>
