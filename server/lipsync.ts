@@ -1,11 +1,20 @@
 import { TRPCError } from "@trpc/server";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { promisify } from "node:util";
+import { join } from "node:path";
+import ffmpegPath from "ffmpeg-static";
+import ffprobeStatic from "ffprobe-static";
 import { z } from "zod";
 
 import { ENV } from "./_core/env";
-import { storageCreateUploadUrl, storageGetSignedUrl } from "./storage";
+import { storageCreateUploadUrl, storageGetSignedUrl, storagePut } from "./storage";
 
 const REPLICATE_API = "https://api.replicate.com/v1";
 const SADTALKER_VERSION = ENV.replicateSadTalkerVersion;
+const VIDEO_RETALKING_MODEL = "chenxwh/video-retalking";
+const execFileAsync = promisify(execFile);
 
 const uploadInput = z.object({
   fileName: z.string().trim().min(1).max(160),
@@ -23,9 +32,12 @@ const renderInput = z.object({
   intensity: z.enum(["Low", "Balanced", "High"]),
   trimStart: z.number().min(0).max(1),
   trimEnd: z.number().min(0).max(1),
+  videoTrimStart: z.number().min(0).max(1),
+  videoTrimEnd: z.number().min(0).max(1),
 }).superRefine((input, ctx) => {
   if (!input.sourceKey && !input.sourceUrl) ctx.addIssue({ code: "custom", path: ["sourceKey"], message: "A source image key or URL is required" });
   if (!input.audioKey && !input.audioUrl) ctx.addIssue({ code: "custom", path: ["audioKey"], message: "An audio key or URL is required" });
+  if (input.videoTrimEnd <= input.videoTrimStart) ctx.addIssue({ code: "custom", path: ["videoTrimEnd"], message: "Video trim end must be after the start" });
 });
 
 export type LipSyncStatus = "queued" | "processing" | "succeeded" | "failed" | "canceled";
@@ -91,10 +103,8 @@ function expressionScale(style: z.infer<typeof renderInput>["style"], intensity:
 }
 
 export function buildSadTalkerInput(input: z.infer<typeof renderInput>, sourceUrl: string, audioUrl: string) {
-  const isVideoSource = input.sourceType === "video";
   return {
-    source_image: isVideoSource ? undefined : sourceUrl,
-    driven_video: isVideoSource ? sourceUrl : undefined,
+    source_image: sourceUrl,
     driven_audio: audioUrl,
     use_enhancer: true,
     pose_style: 0,
@@ -105,6 +115,47 @@ export function buildSadTalkerInput(input: z.infer<typeof renderInput>, sourceUr
     facerender: "facevid2vid",
     still_mode: input.style === "Calm",
   } as const;
+}
+
+function buildVideoRetalkingInput(sourceUrl: string, audioUrl: string) {
+  return {
+    face: sourceUrl,
+    input_audio: audioUrl,
+  } as const;
+}
+
+async function prepareVideoForInference(sourceUrl: string, startRatio: number, endRatio: number) {
+  if (startRatio <= 0 && endRatio >= 1) return sourceUrl;
+  if (!ffmpegPath || !ffprobeStatic.path) {
+    throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Video trimming is unavailable in this deployment" });
+  }
+
+  const workspace = await mkdtemp(join(tmpdir(), "natural-lipsync-"));
+  const sourcePath = join(workspace, "source.mp4");
+  const outputPath = join(workspace, "trimmed.mp4");
+  try {
+    const sourceResponse = await fetch(sourceUrl);
+    if (!sourceResponse.ok) throw new TRPCError({ code: "BAD_GATEWAY", message: "Could not download the uploaded video for trimming" });
+    await writeFile(sourcePath, Buffer.from(await sourceResponse.arrayBuffer()));
+
+    const { stdout } = await execFileAsync(ffprobeStatic.path, [
+      "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", sourcePath,
+    ], { timeout: 30_000 });
+    const duration = Number(stdout.trim());
+    if (!Number.isFinite(duration) || duration <= 0) throw new TRPCError({ code: "BAD_REQUEST", message: "Could not read the uploaded video's duration" });
+
+    const startSeconds = Math.max(0, Math.min(duration, duration * startRatio));
+    const endSeconds = Math.max(startSeconds + 0.05, Math.min(duration, duration * endRatio));
+    await execFileAsync(ffmpegPath, [
+      "-y", "-ss", String(startSeconds), "-i", sourcePath, "-t", String(endSeconds - startSeconds),
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "23", "-c:a", "aac", "-movflags", "+faststart", outputPath,
+    ], { timeout: 120_000, maxBuffer: 5 * 1024 * 1024 });
+
+    const uploaded = await storagePut(`lipsync-clips/${Date.now()}-trimmed.mp4`, await readFile(outputPath), "video/mp4");
+    return storageGetSignedUrl(uploaded.key);
+  } finally {
+    await rm(workspace, { recursive: true, force: true });
+  }
 }
 
 export async function prepareUpload(req: Parameters<typeof getOrigin>[0], input: z.infer<typeof uploadInput>) {
@@ -122,13 +173,20 @@ export async function prepareUpload(req: Parameters<typeof getOrigin>[0], input:
 export async function createPrediction(input: z.infer<typeof renderInput>) {
   const sourceUrl = input.sourceUrl ?? (input.sourceKey ? await storageGetSignedUrl(input.sourceKey) : null);
   const audioUrl = input.audioUrl ?? (input.audioKey ? await storageGetSignedUrl(input.audioKey) : null);
-  if (!sourceUrl || !audioUrl) throw new TRPCError({ code: "BAD_REQUEST", message: "Both source image and audio are required" });
-  const response = await replicateFetch("/predictions", {
+  if (!sourceUrl || !audioUrl) throw new TRPCError({ code: "BAD_REQUEST", message: "Both source media and audio are required" });
+
+  const inferenceSourceUrl = input.sourceType === "video"
+    ? await prepareVideoForInference(sourceUrl, input.videoTrimStart, input.videoTrimEnd)
+    : sourceUrl;
+  const isVideoSource = input.sourceType === "video";
+  const response = await replicateFetch(isVideoSource ? `/models/${VIDEO_RETALKING_MODEL}/predictions` : "/predictions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+    body: JSON.stringify(isVideoSource ? {
+      input: buildVideoRetalkingInput(inferenceSourceUrl, audioUrl),
+    } : {
       version: SADTALKER_VERSION,
-      input: buildSadTalkerInput(input, sourceUrl, audioUrl),
+      input: buildSadTalkerInput(input, inferenceSourceUrl, audioUrl),
     }),
   });
   const data = (await response.json()) as { id: string; status: string; created_at?: string };

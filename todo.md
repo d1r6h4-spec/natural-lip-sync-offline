@@ -34,3 +34,10 @@
 - [x] Memeriksa penanganan source type video pada router lipsync dan adapter SadTalker
 - [x] Menambahkan dukungan video input pada schema backend Lipsync
 - [x] Memastikan pemutaran dan pengiriman video-to-lipsync berfungsi lancar di mobile
+- [x] Membuat komponen VideoTrimmer interaktif untuk sumber video
+- [x] Menambahkan integrasi video trimmer pada kartu video di layar Create
+- [x] Meneruskan parameter videoTrimStart dan videoTrimEnd ke backend lipsync
+- [x] Menambahkan preprocessing FFmpeg server-side agar rentang video benar-benar dipotong sebelum inference
+- [x] Memilih adapter VideoReTalking untuk input video dan audio, tetap memakai SadTalker untuk foto
+- [x] Memvalidasi TypeScript, lint, test, dan build server setelah integrasi preprocessing video
+- [ ] Menjalankan inference live video-to-lipsync dengan media nyata untuk memverifikasi output provider end-to-end

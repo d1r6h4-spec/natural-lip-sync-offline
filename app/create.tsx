@@ -15,6 +15,7 @@ import {
 } from "expo-audio";
 
 import { AudioTrimmer } from "@/components/audio-trimmer";
+import { VideoTrimmer } from "@/components/video-trimmer";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -69,6 +70,8 @@ export default function CreateScreen() {
   const [audio, setAudio] = useState<AudioSource | null>(null);
   const [trimStart, setTrimStart] = useState(0);
   const [trimEnd, setTrimEnd] = useState(1);
+  const [videoTrimStart, setVideoTrimStart] = useState(0);
+  const [videoTrimEnd, setVideoTrimEnd] = useState(1);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryCategory, setLibraryCategory] = useState<"All" | AudioTrack["category"]>("All");
   const [style, setStyle] = useState<(typeof stylesList)[number]["key"]>("Natural");
@@ -94,6 +97,11 @@ export default function CreateScreen() {
     setTrimStart(0);
     setTrimEnd(1);
   }, [audio?.uri]);
+
+  useEffect(() => {
+    setVideoTrimStart(0);
+    setVideoTrimEnd(1);
+  }, [media?.uri]);
 
   useEffect(() => {
     if (audioStatus.playing && audioDuration > 0 && audioStatus.currentTime >= trimEnd * audioDuration) {
@@ -205,6 +213,8 @@ export default function CreateScreen() {
         intensity,
         trimStart,
         trimEnd,
+        videoTrimStart,
+        videoTrimEnd,
       });
 
       router.push({
@@ -219,6 +229,8 @@ export default function CreateScreen() {
           intensity,
           trimStart: String(trimStart),
           trimEnd: String(trimEnd),
+          videoTrimStart: String(videoTrimStart),
+          videoTrimEnd: String(videoTrimEnd),
         },
       });
     } catch (error) {
@@ -266,6 +278,16 @@ export default function CreateScreen() {
             </View>
           ) : null}
         </Pressable>
+        {media?.type === "video" ? (
+          <VideoTrimmer
+            uri={media.uri}
+            colors={colors}
+            startRatio={videoTrimStart}
+            endRatio={videoTrimEnd}
+            onStartChange={setVideoTrimStart}
+            onEndChange={setVideoTrimEnd}
+          />
+        ) : null}
 
         <Text style={[styles.sectionTitle, { color: colors.muted }]}>2. AUDIO TRACK</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>

@@ -18,6 +18,8 @@ type Project = {
   jobId?: string;
   trimStart?: string;
   trimEnd?: string;
+  videoTrimStart?: string;
+  videoTrimEnd?: string;
   style: string;
   intensity: string;
   createdAt: string;
@@ -55,7 +57,7 @@ export default function HomeScreen() {
   };
 
   const renderProject = ({ item }: { item: Project }) => (
-    <Pressable onPress={() => router.push({ pathname: "/result", params: { sourceUri: item.sourceUri, sourceType: item.sourceType, audioUri: item.audioUri, audioName: item.audioName, outputUrl: item.outputUrl, jobId: item.jobId, trimStart: item.trimStart ?? "0", trimEnd: item.trimEnd ?? "full", style: item.style, intensity: item.intensity } })} style={({ pressed }) => [styles.projectCard, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.72 }]}>
+    <Pressable onPress={() => router.push({ pathname: "/result", params: { sourceUri: item.sourceUri, sourceType: item.sourceType, audioUri: item.audioUri, audioName: item.audioName, outputUrl: item.outputUrl, jobId: item.jobId, trimStart: item.trimStart ?? "0", trimEnd: item.trimEnd ?? "full", videoTrimStart: item.videoTrimStart, videoTrimEnd: item.videoTrimEnd, style: item.style, intensity: item.intensity } })} style={({ pressed }) => [styles.projectCard, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.72 }]}>
       {item.sourceType === "image" && item.sourceUri ? <Image source={{ uri: item.sourceUri }} style={styles.projectThumb} /> : <View style={[styles.projectThumb, { backgroundColor: `${colors.primary}16` }]}><IconSymbol name="video.fill" size={23} color={colors.primary} /></View>}
       <View style={styles.projectCopy}>
         <View style={styles.projectTitleRow}><Text style={[styles.projectTitle, { color: colors.foreground }]} numberOfLines={1}>{item.title}</Text><View style={[styles.statusDot, { backgroundColor: colors.success }]} /></View>

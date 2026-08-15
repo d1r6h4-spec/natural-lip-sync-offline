@@ -25,6 +25,8 @@ type ProcessingParams = {
   intensity?: string;
   trimStart?: string;
   trimEnd?: string;
+  videoTrimStart?: string;
+  videoTrimEnd?: string;
 };
 
 function first(value: string | string[] | undefined) {
@@ -108,7 +110,7 @@ export default function ProcessingScreen() {
             </View>
           </View>
           <Text style={[styles.title, { color: colors.foreground }]}>{failedMessage ? "Render needs attention" : "Building your sync"}</Text>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>{failedMessage ? failedMessage : "SadTalker is animating your image from the reference audio. This can take about a minute."}</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>{failedMessage ? failedMessage : params.sourceType === "video" ? "The AI is preserving your video motion while matching the reference audio. This can take about a minute." : "SadTalker is animating your image from the reference audio. This can take about a minute."}</Text>
         </View>
 
         {!failedMessage ? (
@@ -141,7 +143,8 @@ export default function ProcessingScreen() {
           <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>SOURCE</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{sourceLabel}</Text></View>
           <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>PROFILE</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.style ?? "Natural"} · {params.intensity ?? "Balanced"}</Text></View>
           <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>AUDIO</Text><Text style={[styles.metaValue, { color: colors.foreground }]} numberOfLines={1}>{params.audioName ?? "Voice track"}</Text></View>
-          <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>CLIP</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.trimStart ?? "0"} – {params.trimEnd ?? "1"}</Text></View>
+          <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>AUDIO CLIP</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.trimStart ?? "0"} – {params.trimEnd ?? "1"}</Text></View>
+          {params.sourceType === "video" ? <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>VIDEO CLIP</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.videoTrimStart ?? "0"} – {params.videoTrimEnd ?? "1"}</Text></View> : null}
         </View>
 
         <Pressable onPress={handleCancel} disabled={canceling} style={({ pressed }) => [styles.cancelButton, pressed && { opacity: 0.6 }, canceling && { opacity: 0.5 }]}>
