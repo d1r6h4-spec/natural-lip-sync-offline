@@ -28,11 +28,10 @@ const schemeFromBundleId = `manus${timestamp}`;
 
 const env = {
   // App branding - update these values directly (do not use env vars)
-  appName: "Natural Lip-Sync App",
+  appName: "Natural Lip-Sync",
   appSlug: "natural-lipsync-app",
-  // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
-  // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "",
+  // Generated app icon asset reserved for the project lifecycle.
+  logoUrl: "/manus-storage/natural-lipsync-icon_cd411502.png",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,
