@@ -63,3 +63,5 @@
 - [x] Menghapus kebutuhan `REPLICATE_MOTION_TRANSFER_VERSION` dan menggunakan API resmi model Replicate
 - [x] Menjalankan pengujian koneksi dan uji inference motion transfer
 - [x] Menyimpan checkpoint final migrasi model motion-control
+- [x] Menjalankan uji end-to-end motion transfer nyata dengan model `kwaivgi/kling-v2.6-motion-control`
+- [x] Menunggu hingga selesai dan mencatat output video atau error lengkap dari provider (Gagal pada tingkat provider: HTTP 402 Insufficient Credit)
