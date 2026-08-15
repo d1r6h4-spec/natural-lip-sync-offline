@@ -17,13 +17,15 @@ type Project = {
   audioName: string;
   style: string;
   intensity: string;
+  trimStart: string;
+  trimEnd: string;
   createdAt: string;
   status: "Completed";
 };
 
 export default function ResultScreen() {
   const colors = useColors();
-  const params = useLocalSearchParams<{ sourceUri?: string; sourceType?: string; audioUri?: string; audioName?: string; style?: string; intensity?: string }>();
+  const params = useLocalSearchParams<{ sourceUri?: string; sourceType?: string; audioUri?: string; audioName?: string; style?: string; intensity?: string; trimStart?: string; trimEnd?: string }>();
   const [saved, setSaved] = useState(false);
   const [sharing, setSharing] = useState(false);
   const sourceUri = params.sourceUri ?? "";
@@ -39,9 +41,11 @@ export default function ResultScreen() {
     audioName: params.audioName ?? "Voice track",
     style: params.style ?? "Natural",
     intensity: params.intensity ?? "Balanced",
+    trimStart: params.trimStart ?? "0",
+    trimEnd: params.trimEnd ?? "full",
     createdAt: new Date().toISOString(),
     status: "Completed",
-  }), [params.audioName, params.intensity, params.sourceType, params.style, sourceUri]);
+  }), [params.audioName, params.intensity, params.sourceType, params.style, params.trimEnd, params.trimStart, sourceUri]);
 
   useEffect(() => {
     const save = async () => {
@@ -124,6 +128,7 @@ export default function ResultScreen() {
           <View style={styles.detailRow}><Text style={[styles.detailKey, { color: colors.muted }]}>MOTION</Text><Text style={[styles.detailValue, { color: colors.foreground }]}>{project.style}</Text></View>
           <View style={styles.detailRow}><Text style={[styles.detailKey, { color: colors.muted }]}>INTENSITY</Text><Text style={[styles.detailValue, { color: colors.foreground }]}>{project.intensity}</Text></View>
           <View style={styles.detailRow}><Text style={[styles.detailKey, { color: colors.muted }]}>QUALITY</Text><Text style={[styles.detailValue, { color: colors.foreground }]}>1080p preview</Text></View>
+          <View style={styles.detailRow}><Text style={[styles.detailKey, { color: colors.muted }]}>AUDIO CLIP</Text><Text style={[styles.detailValue, { color: colors.foreground }]}>{project.trimStart}s – {project.trimEnd === "full" ? "full" : `${project.trimEnd}s`}</Text></View>
         </View>
 
         <View style={[styles.prototypeNote, { backgroundColor: `${colors.warning}12`, borderColor: `${colors.warning}35` }]}>

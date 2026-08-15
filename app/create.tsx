@@ -13,6 +13,7 @@ import {
   useAudioRecorderState,
 } from "expo-audio";
 
+import { AudioTrimmer } from "@/components/audio-trimmer";
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
@@ -42,6 +43,8 @@ export default function CreateScreen() {
   const recorderState = useAudioRecorderState(recorder);
   const [media, setMedia] = useState<SourceMedia | null>(null);
   const [audio, setAudio] = useState<AudioSource | null>(null);
+  const [trimStart, setTrimStart] = useState(0);
+  const [trimEnd, setTrimEnd] = useState(1);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryCategory, setLibraryCategory] = useState<"All" | AudioTrack["category"]>("All");
   const [style, setStyle] = useState<(typeof stylesList)[number]["key"]>("Natural");
@@ -53,11 +56,32 @@ export default function CreateScreen() {
     void setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
   }, []);
 
+  const audioDuration = audioStatus.duration || audio?.duration || 0;
   const audioDurationLabel = useMemo(() => {
-    const seconds = Math.max(0, Math.floor(audioStatus.duration || audio?.duration || 0));
+    const seconds = Math.max(0, Math.floor(audioDuration));
     if (!seconds) return "Ready to sync";
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
-  }, [audio?.duration, audioStatus.duration]);
+  }, [audioDuration]);
+
+  useEffect(() => {
+    setTrimStart(0);
+    setTrimEnd(1);
+  }, [audio?.uri]);
+
+  useEffect(() => {
+    if (audioStatus.playing && audioDuration > 0 && audioStatus.currentTime >= trimEnd * audioDuration) {
+      audioPlayer.pause();
+    }
+  }, [audioDuration, audioPlayer, audioStatus.currentTime, audioStatus.playing, trimEnd]);
+
+  const previewTrim = () => {
+    if (audioStatus.playing) {
+      audioPlayer.pause();
+      return;
+    }
+    audioPlayer.seekTo(trimStart * Math.max(audioDuration, 1));
+    audioPlayer.play();
+  };
 
   const visibleTracks = useMemo(
     () => libraryCategory === "All" ? BUILTIN_AUDIO_TRACKS : BUILTIN_AUDIO_TRACKS.filter((track) => track.category === libraryCategory),
@@ -134,6 +158,8 @@ export default function CreateScreen() {
         audioName: audio.name,
         style,
         intensity,
+        trimStart: String(trimStart),
+        trimEnd: String(trimEnd),
       },
     });
   };
@@ -203,12 +229,13 @@ export default function CreateScreen() {
             <IconSymbol name="chevron.right" size={16} color={colors.primary} />
           </Pressable>
           {audio ? (
-            <Pressable onPress={() => (audioStatus.playing ? audioPlayer.pause() : audioPlayer.play())} style={({ pressed }) => [styles.audioPreview, { backgroundColor: `${colors.primary}10` }, pressed && { opacity: 0.7 }]}>
-              <IconSymbol name={audioStatus.playing ? "chevron.right" : "play.fill"} size={17} color={colors.primary} />
-              <Text style={[styles.audioPreviewText, { color: colors.primary }]}>{audioStatus.playing ? "Playing audio preview" : "Preview audio"}</Text>
+            <Pressable onPress={previewTrim} style={({ pressed }) => [styles.audioPreview, { backgroundColor: `${colors.primary}10` }, pressed && { opacity: 0.7 }]}>
+              <IconSymbol name={audioStatus.playing ? "pause.fill" : "play.fill"} size={17} color={colors.primary} />
+              <Text style={[styles.audioPreviewText, { color: colors.primary }]}>{audioStatus.playing ? "Playing selected section" : "Preview selected section"}</Text>
               <View style={[styles.wave, { backgroundColor: colors.primary }]} />
             </Pressable>
           ) : null}
+          {audio ? <AudioTrimmer duration={audioDuration || audio.duration || 1} startRatio={trimStart} endRatio={trimEnd} isPlaying={audioStatus.playing} colors={colors} onStartChange={setTrimStart} onEndChange={setTrimEnd} onPreview={previewTrim} /> : null}
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.muted }]}>3. MOTION PROFILE</Text>

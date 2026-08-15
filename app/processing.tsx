@@ -16,7 +16,7 @@ const stages = [
 
 export default function ProcessingScreen() {
   const colors = useColors();
-  const params = useLocalSearchParams<{ sourceUri?: string; sourceType?: string; audioUri?: string; audioName?: string; style?: string; intensity?: string }>();
+  const params = useLocalSearchParams<{ sourceUri?: string; sourceType?: string; audioUri?: string; audioName?: string; style?: string; intensity?: string; trimStart?: string; trimEnd?: string }>();
   const [progress, setProgress] = useState(0);
   const completedRef = useRef(false);
 
@@ -85,6 +85,7 @@ export default function ProcessingScreen() {
           <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>SOURCE</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{sourceLabel}</Text></View>
           <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>PROFILE</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.style ?? "Natural"} · {params.intensity ?? "Balanced"}</Text></View>
           <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>AUDIO</Text><Text style={[styles.metaValue, { color: colors.foreground }]} numberOfLines={1}>{params.audioName ?? "Voice track"}</Text></View>
+          <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>CLIP</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.trimStart ?? "0"}s – {params.trimEnd ?? "full"}s</Text></View>
         </View>
 
         <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.cancelButton, pressed && { opacity: 0.6 }]}>

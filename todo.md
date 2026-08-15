@@ -16,3 +16,7 @@
 - [x] Membangun antarmuka Audio Library modal / picker di layar Create
 - [x] Mengintegrasikan pemutaran pratinjau audio dengan expo-audio
 - [x] Memvalidasi alur pemilihan audio dan memastikan tidak ada error pada TypeScript dan lint
+- [x] Membuat komponen Trimmer visual dengan waveform batang dan slider start/end
+- [x] Menambahkan tombol Trim Audio pada kartu audio di layar Create
+- [x] Meneruskan parameter trimStart dan trimEnd ke layar Processing dan Result
+- [x] Memeriksa kompilasi TypeScript, lint, dan test setelah integrasi trimmer
