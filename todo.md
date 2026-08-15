@@ -49,3 +49,8 @@
 - [x] Menambahkan pesan ramah pengguna untuk error HTTP 402 Insufficient Credit pada alur Create dan Processing
 - [x] Memvalidasi tampilan progress bar 0-100% pada viewport mobile
 - [x] Menyimpan checkpoint final setelah seluruh pemeriksaan kualitas selesai
+- [x] Merancang model data dan helper penyimpanan draf lokal menggunakan AsyncStorage
+- [x] Menambahkan tombol simpan draf dan daftar draf tersimpan di layar Create
+- [x] Memungkinkan pemulihan parameter draf (media, audio, trim, style) saat tombol draf ditekan
+- [x] Menguji kompilasi TypeScript, lint, dan fungsionalitas draf
+- [x] Menyimpan checkpoint fitur draf lokal

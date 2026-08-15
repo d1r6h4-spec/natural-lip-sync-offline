@@ -22,6 +22,7 @@ import { useColors } from "@/hooks/use-colors";
 import { BUILTIN_AUDIO_TRACKS, type AudioTrack } from "@/constants/audioLibrary";
 import { trpc } from "@/lib/trpc";
 import { friendlyLipSyncError, isProviderCreditError } from "@/lib/lipsync-error";
+import { saveDraft, getDrafts, deleteDraft, type LipSyncDraft } from "@/lib/drafts";
 
 type SourceMedia = {
   uri: string;
@@ -78,10 +79,62 @@ export default function CreateScreen() {
   const [style, setStyle] = useState<(typeof stylesList)[number]["key"]>("Natural");
   const [intensity, setIntensity] = useState<"Low" | "Balanced" | "High">("Balanced");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [draftsModalOpen, setDraftsModalOpen] = useState(false);
+  const [draftsList, setDraftsList] = useState<LipSyncDraft[]>([]);
   const prepareUploadMutation = trpc.lipsync.prepareUpload.useMutation();
   const createJobMutation = trpc.lipsync.create.useMutation();
   const audioPlayer = useAudioPlayer(audio?.uri ?? null);
   const audioStatus = useAudioPlayerStatus(audioPlayer);
+
+  const loadDrafts = async () => {
+    const list = await getDrafts();
+    setDraftsList(list);
+  };
+
+  const handleSaveDraft = async () => {
+    if (!media && !audio) {
+      Alert.alert("Nothing to save", "Please select a photo/video or audio track before saving a draft.");
+      return;
+    }
+    const title = media?.fileName ?? (media?.type === "video" ? "Video Lip-Sync Draft" : "Portrait Lip-Sync Draft");
+    await saveDraft({
+      title,
+      sourceUri: media?.uri ?? null,
+      sourceType: media?.type ?? null,
+      audioUri: audio?.uri ?? null,
+      audioName: audio?.name ?? null,
+      trimStart,
+      trimEnd,
+      videoTrimStart,
+      videoTrimEnd,
+      style,
+      intensity,
+    });
+    await loadDrafts();
+    Alert.alert("Draft saved", "Your project draft has been stored locally. You can resume it anytime from Create.");
+  };
+
+  const handleApplyDraft = (draft: LipSyncDraft) => {
+    if (draft.sourceUri && draft.sourceType) {
+      setMedia({ uri: draft.sourceUri, type: draft.sourceType });
+    }
+    if (draft.audioUri && draft.audioName) {
+      setAudio({ uri: draft.audioUri, name: draft.audioName });
+    }
+    setTrimStart(draft.trimStart);
+    setTrimEnd(draft.trimEnd);
+    setVideoTrimStart(draft.videoTrimStart);
+    setVideoTrimEnd(draft.videoTrimEnd);
+    setStyle(draft.style);
+    setIntensity(draft.intensity);
+    setDraftsModalOpen(false);
+    Alert.alert("Draft loaded", `Resumed "${draft.title}" successfully.`);
+  };
+
+  const handleDeleteDraft = async (id: string) => {
+    const updated = await deleteDraft(id);
+    setDraftsList(updated);
+  };
 
   useEffect(() => {
     void setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
@@ -255,6 +308,10 @@ export default function CreateScreen() {
             <Text style={[styles.eyebrow, { color: colors.primary }]}>NEW PROJECT</Text>
             <Text style={[styles.title, { color: colors.foreground }]}>Create a natural sync</Text>
           </View>
+          <Pressable onPress={() => { void loadDrafts(); setDraftsModalOpen(true); }} style={({ pressed }) => [styles.draftHeaderButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.7 }]}>
+            <IconSymbol name="sparkles" size={14} color={colors.primary} />
+            <Text style={[styles.draftHeaderButtonText, { color: colors.foreground }]}>Drafts</Text>
+          </Pressable>
           <View style={[styles.stepBadge, { backgroundColor: colors.surface }]}><Text style={[styles.stepText, { color: colors.muted }]}>1 / 1</Text></View>
         </View>
 
@@ -349,11 +406,49 @@ export default function CreateScreen() {
           </View>
         </View>
 
-        <Pressable onPress={startGeneration} disabled={isSubmitting} style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.primary }, pressed && { transform: [{ scale: 0.98 }], opacity: 0.88 }, isSubmitting && { opacity: 0.65 }]}>
-          {isSubmitting ? <ActivityIndicator size="small" color="#fff" /> : <IconSymbol name="sparkles" size={19} color="#fff" />}
-          <Text style={styles.primaryButtonText}>{isSubmitting ? "Uploading & rendering…" : "Start natural sync"}</Text>
-          {!isSubmitting ? <IconSymbol name="chevron.right" size={18} color="#fff" /> : null}
-        </Pressable>
+        <View style={styles.actionButtonsRow}>
+          <Pressable onPress={handleSaveDraft} style={({ pressed }) => [styles.secondaryActionButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.75 }]}>
+            <IconSymbol name="bookmark.fill" size={16} color={colors.primary} />
+            <Text style={[styles.secondaryActionText, { color: colors.foreground }]}>Save draft</Text>
+          </Pressable>
+          <Pressable onPress={startGeneration} disabled={isSubmitting} style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.primary, flex: 1 }, pressed && { transform: [{ scale: 0.98 }], opacity: 0.88 }, isSubmitting && { opacity: 0.65 }]}>
+            {isSubmitting ? <ActivityIndicator size="small" color="#fff" /> : <IconSymbol name="sparkles" size={19} color="#fff" />}
+            <Text style={styles.primaryButtonText}>{isSubmitting ? "Uploading & rendering…" : "Start natural sync"}</Text>
+          </Pressable>
+        </View>
+
+        <Modal visible={draftsModalOpen} transparent animationType="slide" onRequestClose={() => setDraftsModalOpen(false)}>
+          <View style={styles.modalBackdrop}>
+            <View style={[styles.librarySheet, { backgroundColor: colors.background }]}>
+              <View style={styles.libraryHeader}>
+                <View style={styles.flexOne}><Text style={[styles.libraryEyebrow, { color: colors.primary }]}>LOCAL DRAFTS</Text><Text style={[styles.libraryTitle, { color: colors.foreground }]}>Saved projects</Text></View>
+                <Pressable onPress={() => setDraftsModalOpen(false)} style={({ pressed }) => [styles.closeButton, { backgroundColor: colors.surface }, pressed && { opacity: 0.6 }]}><Text style={[styles.closeText, { color: colors.foreground }]}>×</Text></Pressable>
+              </View>
+              <Text style={[styles.librarySubtitle, { color: colors.muted }]}>Pick a draft to resume configuring your face, audio, and trim settings.</Text>
+              <FlatList
+                data={draftsList}
+                keyExtractor={(item) => item.id}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.trackList}
+                ListEmptyComponent={<View style={[styles.emptyDraftCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><Text style={[styles.emptyDraftText, { color: colors.muted }]}>No local drafts found. Tap &quot;Save draft&quot; before leaving to resume anytime.</Text></View>}
+                renderItem={({ item }) => (
+                  <View style={[styles.draftRow, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+                    <Pressable onPress={() => handleApplyDraft(item)} style={{ flex: 1 }}>
+                      <Text style={[styles.draftTitle, { color: colors.foreground }]} numberOfLines={1}>{item.title}</Text>
+                      <Text style={[styles.draftMeta, { color: colors.muted }]}>{item.audioName ?? "No audio"} · {item.style} · {new Date(item.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</Text>
+                    </Pressable>
+                    <Pressable onPress={() => handleApplyDraft(item)} style={[styles.draftResumeButton, { backgroundColor: `${colors.primary}16` }]}>
+                      <Text style={[styles.draftResumeText, { color: colors.primary }]}>Resume</Text>
+                    </Pressable>
+                    <Pressable onPress={() => handleDeleteDraft(item.id)} style={styles.draftDeleteButton}>
+                      <Text style={[styles.draftDeleteText, { color: colors.error }]}>Delete</Text>
+                    </Pressable>
+                  </View>
+                )}
+              />
+            </View>
+          </View>
+        </Modal>
         <Text style={[styles.privacy, { color: colors.muted }]}>Your media is uploaded securely for AI rendering and removed according to the provider&apos;s retention policy.</Text>
       </ScrollView>
       <Modal visible={libraryOpen} transparent animationType="slide" onRequestClose={() => setLibraryOpen(false)}>
@@ -453,4 +548,18 @@ const styles = StyleSheet.create({
   trackTitle: { fontSize: 12, fontWeight: "800" },
   trackMeta: { fontSize: 10, marginTop: 3 },
   useText: { fontSize: 11, fontWeight: "800" },
+  draftHeaderButton: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 11, paddingVertical: 8, borderRadius: 12, borderWidth: 1 },
+  draftHeaderButtonText: { fontSize: 12, fontWeight: "800" },
+  actionButtonsRow: { flexDirection: "row", gap: 10, marginTop: 16 },
+  secondaryActionButton: { height: 54, paddingHorizontal: 16, borderRadius: 17, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 8 },
+  secondaryActionText: { fontSize: 13, fontWeight: "800" },
+  emptyDraftCard: { padding: 24, borderRadius: 16, borderWidth: 1, alignItems: "center", marginTop: 20 },
+  emptyDraftText: { fontSize: 13, textAlign: "center", lineHeight: 19 },
+  draftRow: { minHeight: 64, borderRadius: 16, borderWidth: 1, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 },
+  draftTitle: { fontSize: 13, fontWeight: "800" },
+  draftMeta: { fontSize: 10, marginTop: 3 },
+  draftResumeButton: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },
+  draftResumeText: { fontSize: 11, fontWeight: "800" },
+  draftDeleteButton: { paddingHorizontal: 8, paddingVertical: 7 },
+  draftDeleteText: { fontSize: 11, fontWeight: "700" },
 });
