@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { VideoView, useVideoPlayer } from "expo-video";
+import * as Sharing from "expo-sharing";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { ScreenContainer } from "@/components/screen-container";
@@ -24,6 +25,7 @@ export default function ResultScreen() {
   const colors = useColors();
   const params = useLocalSearchParams<{ sourceUri?: string; sourceType?: string; audioUri?: string; audioName?: string; style?: string; intensity?: string }>();
   const [saved, setSaved] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const sourceUri = params.sourceUri ?? "";
   const isVideo = params.sourceType === "video";
   const videoPlayer = useVideoPlayer(isVideo ? sourceUri : null, (player) => {
@@ -58,7 +60,28 @@ export default function ResultScreen() {
   }, [project]);
 
   const shareResult = async () => {
-    await Share.share({ message: `Natural Lip-Sync preview · ${project.style} · ${project.audioName}` });
+    setSharing(true);
+    try {
+      const shareAvailable = await Sharing.isAvailableAsync();
+      if (Platform.OS !== "web" && isVideo && sourceUri && shareAvailable) {
+        await Sharing.shareAsync(sourceUri, {
+          dialogTitle: "Share your lip-sync",
+          mimeType: "video/mp4",
+          UTI: "public.movie",
+        });
+        return;
+      }
+      await Share.share({
+        message: isVideo
+          ? `Natural Lip-Sync preview · ${project.style} · ${project.audioName}`
+          : "Your lip-sync preview is ready. A rendered video file is needed before sharing to a social platform.",
+        title: "Natural Lip-Sync",
+      });
+    } catch {
+      Alert.alert("Sharing unavailable", "The share sheet could not be opened on this device.");
+    } finally {
+      setSharing(false);
+    }
   };
 
   const downloadResult = () => {
@@ -104,11 +127,28 @@ export default function ResultScreen() {
         </View>
 
         <View style={[styles.prototypeNote, { backgroundColor: `${colors.warning}12`, borderColor: `${colors.warning}35` }]}>
-          <Text style={[styles.prototypeNoteText, { color: colors.muted }]}>Prototype preview: your original source is ready for a production lip-sync renderer.</Text>
+          <Text style={[styles.prototypeNoteText, { color: colors.muted }]}>{isVideo ? "Choose a social app below to pass the video into its composer." : "Prototype preview: a rendered video file is required before sending it to social apps."}</Text>
         </View>
+        <Text style={[styles.sectionTitle, { color: colors.muted }]}>SHARE TO SOCIAL</Text>
+        <View style={styles.socialGrid}>
+          {[
+            { label: "Instagram", short: "IG", tint: "#E1306C" },
+            { label: "TikTok", short: "TT", tint: "#111111" },
+            { label: "WhatsApp", short: "WA", tint: "#25D366" },
+          ].map((social) => (
+            <Pressable key={social.label} onPress={shareResult} disabled={sharing} style={({ pressed }) => [styles.socialCard, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.7 }, sharing && { opacity: 0.55 }]}>
+              <View style={[styles.socialBadge, { backgroundColor: social.tint }]}><Text style={styles.socialBadgeText}>{social.short}</Text></View>
+              <Text style={[styles.socialLabel, { color: colors.foreground }]}>{social.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <Pressable onPress={shareResult} disabled={sharing} style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.primary }, pressed && { transform: [{ scale: 0.98 }], opacity: 0.88 }, sharing && { opacity: 0.7 }]}>
+          <IconSymbol name="square.and.arrow.up" size={18} color="#fff" />
+          <Text style={styles.primaryText}>{sharing ? "Opening share sheet…" : "Share video"}</Text>
+        </Pressable>
         <View style={styles.actions}>
-          <Pressable onPress={downloadResult} style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.primary }, pressed && { transform: [{ scale: 0.98 }], opacity: 0.88 }]}><IconSymbol name="square.and.arrow.up" size={18} color="#fff" /><Text style={styles.primaryText}>Save result</Text></Pressable>
-          <Pressable onPress={shareResult} style={({ pressed }) => [styles.shareButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.7 }]}><IconSymbol name="square.and.arrow.up" size={18} color={colors.foreground} /><Text style={[styles.shareText, { color: colors.foreground }]}>Share</Text></Pressable>
+          <Pressable onPress={downloadResult} style={({ pressed }) => [styles.shareButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.7 }]}><IconSymbol name="square.and.arrow.up" size={18} color={colors.foreground} /><Text style={[styles.shareText, { color: colors.foreground }]}>Save result</Text></Pressable>
+          <Pressable onPress={shareResult} disabled={sharing} style={({ pressed }) => [styles.shareButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.7 }, sharing && { opacity: 0.55 }]}><IconSymbol name="paperplane.fill" size={18} color={colors.foreground} /><Text style={[styles.shareText, { color: colors.foreground }]}>More apps</Text></Pressable>
         </View>
         <Pressable onPress={() => router.replace("/create")} style={({ pressed }) => [styles.againButton, pressed && { opacity: 0.6 }]}><Text style={[styles.againText, { color: colors.primary }]}>Create another sync</Text><IconSymbol name="chevron.right" size={17} color={colors.primary} /></Pressable>
       </ScrollView>
@@ -144,8 +184,13 @@ const styles = StyleSheet.create({
   detailValue: { fontSize: 13, fontWeight: "700" },
   prototypeNote: { borderRadius: 13, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 9, marginTop: 4 },
   prototypeNoteText: { fontSize: 11, lineHeight: 16, textAlign: "center" },
+  socialGrid: { flexDirection: "row", gap: 9 },
+  socialCard: { flex: 1, borderRadius: 17, borderWidth: 1, paddingVertical: 12, alignItems: "center", gap: 7 },
+  socialBadge: { width: 30, height: 30, borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  socialBadgeText: { color: "#fff", fontSize: 10, fontWeight: "900" },
+  socialLabel: { fontSize: 11, fontWeight: "800" },
   actions: { flexDirection: "row", gap: 9, marginTop: 4 },
-  primaryButton: { flex: 1, minHeight: 50, borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
+  primaryButton: { minHeight: 50, borderRadius: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   primaryText: { color: "#fff", fontSize: 14, fontWeight: "800" },
   shareButton: { minWidth: 94, minHeight: 50, borderRadius: 16, borderWidth: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   shareText: { fontSize: 13, fontWeight: "800" },

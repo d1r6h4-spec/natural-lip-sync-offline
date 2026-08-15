@@ -9,3 +9,6 @@
 - [x] Membangun antarmuka Player Screen untuk pratinjau video hasil render dengan expo-video
 - [x] Membangun fitur penyimpanan lokal (AsyncStorage) untuk riwayat proyek
 - [x] Menguji alur aplikasi secara end-to-end dan memastikan tidak ada dead ends
+- [x] Menambahkan native share sheet untuk video hasil lip-sync dengan target TikTok, Instagram, WhatsApp, dan aplikasi lain yang tersedia
+- [x] Menambahkan fallback berbagi umum ketika aplikasi sosial tertentu tidak tersedia
+- [x] Memvalidasi alur berbagi pada layar Result dan menjalankan pemeriksaan proyek ulang
