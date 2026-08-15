@@ -20,3 +20,7 @@
 - [x] Menambahkan tombol Trim Audio pada kartu audio di layar Create
 - [x] Meneruskan parameter trimStart dan trimEnd ke layar Processing dan Result
 - [x] Memeriksa kompilasi TypeScript, lint, dan test setelah integrasi trimmer
+- [x] Mendiagnosis alur pengiriman parameter gambar dan audio ke layar hasil
+- [x] Memperbaiki penanganan sumber foto diam (image-to-lipsync) agar memunculkan indikator audio aktif atau animasi sinkronisasi di Result
+- [x] Memastikan audio referensi benar-benar diputar bersamaan dengan pratinjau gambar diam di layar Result
+- [x] Menjalankan pemeriksaan kompilasi TypeScript dan lint setelah perbaikan

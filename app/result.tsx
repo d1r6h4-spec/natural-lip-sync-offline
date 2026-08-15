@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { Alert, Image, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Animated, Easing, Image, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { VideoView, useVideoPlayer } from "expo-video";
 import * as Sharing from "expo-sharing";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -15,6 +16,7 @@ type Project = {
   sourceUri: string;
   sourceType: string;
   audioName: string;
+  audioUri: string;
   style: string;
   intensity: string;
   trimStart: string;
@@ -33,19 +35,56 @@ export default function ResultScreen() {
   const videoPlayer = useVideoPlayer(isVideo ? sourceUri : null, (player) => {
     player.loop = true;
   });
+  const audioPlayer = useAudioPlayer(params.audioUri ?? null);
+  const audioStatus = useAudioPlayerStatus(audioPlayer);
+  const mouthPulse = useRef(new Animated.Value(0)).current;
+  const trimStartSeconds = Math.max(0, Number(params.trimStart ?? 0) || 0);
+  const trimEndSeconds = params.trimEnd && params.trimEnd !== "full" ? Math.max(trimStartSeconds, Number(params.trimEnd) || trimStartSeconds) : audioStatus.duration;
   const project = useMemo<Project>(() => ({
     id: `${Date.now()}`,
     title: "Natural sync preview",
     sourceUri,
     sourceType: params.sourceType ?? "image",
     audioName: params.audioName ?? "Voice track",
+    audioUri: params.audioUri ?? "",
     style: params.style ?? "Natural",
     intensity: params.intensity ?? "Balanced",
     trimStart: params.trimStart ?? "0",
     trimEnd: params.trimEnd ?? "full",
     createdAt: new Date().toISOString(),
     status: "Completed",
-  }), [params.audioName, params.intensity, params.sourceType, params.style, params.trimEnd, params.trimStart, sourceUri]);
+  }), [params.audioName, params.audioUri, params.intensity, params.sourceType, params.style, params.trimEnd, params.trimStart, sourceUri]);
+
+  useEffect(() => {
+    void setAudioModeAsync({ playsInSilentMode: true });
+  }, []);
+
+  useEffect(() => {
+    const shouldAnimate = !isVideo && Boolean(params.audioUri) && audioStatus.playing;
+    const target = shouldAnimate ? 0.55 + ((Math.sin(audioStatus.currentTime * 13) + 1) / 2) * 0.45 : 0;
+    const animation = Animated.timing(mouthPulse, { toValue: target, duration: 110, easing: Easing.out(Easing.quad), useNativeDriver: true });
+    animation.start();
+    return () => mouthPulse.stopAnimation();
+  }, [audioStatus.currentTime, audioStatus.playing, isVideo, mouthPulse, params.audioUri]);
+
+  useEffect(() => {
+    if (!isVideo && audioStatus.playing && trimEndSeconds > trimStartSeconds && audioStatus.currentTime >= trimEndSeconds) {
+      audioPlayer.pause();
+    }
+  }, [audioPlayer, audioStatus.currentTime, audioStatus.playing, isVideo, trimEndSeconds, trimStartSeconds]);
+
+  const toggleAudioPreview = () => {
+    if (!params.audioUri) {
+      Alert.alert("Audio belum tersedia", "Pilih atau rekam audio referensi sebelum membuat lip-sync.");
+      return;
+    }
+    if (audioStatus.playing) {
+      audioPlayer.pause();
+      return;
+    }
+    audioPlayer.seekTo(trimStartSeconds);
+    audioPlayer.play();
+  };
 
   useEffect(() => {
     const save = async () => {
@@ -110,7 +149,15 @@ export default function ResultScreen() {
           {isVideo && sourceUri ? (
             <VideoView player={videoPlayer} style={styles.preview} allowsFullscreen allowsPictureInPicture contentFit="cover" />
           ) : sourceUri ? (
-            <Image source={{ uri: sourceUri }} style={styles.preview} />
+            <View style={styles.imagePreviewWrap}>
+              <Image source={{ uri: sourceUri }} style={styles.preview} />
+              {params.audioUri ? (
+                <View style={styles.syncOverlay}>
+                  <Animated.View style={[styles.syncMouth, { transform: [{ scaleY: mouthPulse.interpolate({ inputRange: [0, 1], outputRange: [0.72, 1.35] }) }] }]} />
+                  <Text style={styles.syncOverlayText}>{audioStatus.playing ? "AUDIO SYNC ACTIVE" : "TAP PLAY TO SYNC AUDIO"}</Text>
+                </View>
+              ) : null}
+            </View>
           ) : (
             <View style={styles.emptyPreview}><IconSymbol name="video.fill" size={32} color={colors.primary} /><Text style={[styles.emptyText, { color: colors.muted }]}>Preview source unavailable</Text></View>
           )}
@@ -119,7 +166,8 @@ export default function ResultScreen() {
 
         <View style={[styles.audioBanner, { backgroundColor: `${colors.primary}12`, borderColor: `${colors.primary}2f` }]}>
           <View style={[styles.audioIcon, { backgroundColor: `${colors.primary}20` }]}><IconSymbol name="mic.fill" size={18} color={colors.primary} /></View>
-          <View style={styles.flexOne}><Text style={[styles.audioName, { color: colors.foreground }]} numberOfLines={1}>{project.audioName}</Text><Text style={[styles.audioMeta, { color: colors.muted }]}>Synced with {project.style.toLowerCase()} expression</Text></View>
+          <View style={styles.flexOne}><Text style={[styles.audioName, { color: colors.foreground }]} numberOfLines={1}>{project.audioName}</Text><Text style={[styles.audioMeta, { color: colors.muted }]}>{params.audioUri ? `${audioStatus.playing ? "Playing" : "Ready"} · ${project.style.toLowerCase()} expression` : "Audio reference unavailable"}</Text></View>
+          {params.audioUri ? <Pressable onPress={toggleAudioPreview} style={({ pressed }) => [styles.audioPlayButton, { backgroundColor: `${colors.primary}18` }, pressed && { opacity: 0.6 }]}><IconSymbol name={audioStatus.playing ? "pause.fill" : "play.fill"} size={16} color={colors.primary} /></Pressable> : null}
           <View style={[styles.savedPill, { backgroundColor: `${colors.success}18` }]}><Text style={[styles.savedText, { color: colors.success }]}>{saved ? "Saved" : "Saving"}</Text></View>
         </View>
 
@@ -132,7 +180,7 @@ export default function ResultScreen() {
         </View>
 
         <View style={[styles.prototypeNote, { backgroundColor: `${colors.warning}12`, borderColor: `${colors.warning}35` }]}>
-          <Text style={[styles.prototypeNoteText, { color: colors.muted }]}>{isVideo ? "Choose a social app below to pass the video into its composer." : "Prototype preview: a rendered video file is required before sending it to social apps."}</Text>
+          <Text style={[styles.prototypeNoteText, { color: colors.muted }]}>{isVideo ? "Choose a social app below to pass the video into its composer." : params.audioUri ? "Image preview keeps the source photo visible while the selected audio and sync timing are active. Face-specific mouth warping requires the production renderer." : "Add an audio reference to activate image-to-lip-sync preview."}</Text>
         </View>
         <Text style={[styles.sectionTitle, { color: colors.muted }]}>SHARE TO SOCIAL</Text>
         <View style={styles.socialGrid}>
@@ -171,6 +219,10 @@ const styles = StyleSheet.create({
   checkBadge: { width: 40, height: 40, borderRadius: 14, alignItems: "center", justifyContent: "center", transform: [{ rotate: "-45deg" }] },
   previewFrame: { height: 330, borderRadius: 24, borderWidth: 1, overflow: "hidden", position: "relative" },
   preview: { width: "100%", height: "100%" },
+  imagePreviewWrap: { flex: 1, position: "relative" },
+  syncOverlay: { position: "absolute", left: 0, right: 0, bottom: 18, alignItems: "center", gap: 7 },
+  syncMouth: { width: 52, height: 15, borderRadius: 22, borderWidth: 2, borderColor: "#fff", backgroundColor: "rgba(20,28,32,0.72)" },
+  syncOverlayText: { color: "#fff", fontSize: 10, fontWeight: "800", letterSpacing: 1.1, backgroundColor: "rgba(0,0,0,0.52)", paddingHorizontal: 9, paddingVertical: 6, borderRadius: 10 },
   emptyPreview: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
   emptyText: { fontSize: 13, fontWeight: "700" },
   previewTag: { position: "absolute", top: 14, left: 14, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 7, flexDirection: "row", alignItems: "center", gap: 6 },
@@ -180,6 +232,7 @@ const styles = StyleSheet.create({
   flexOne: { flex: 1, gap: 2 },
   audioName: { fontSize: 13, fontWeight: "800" },
   audioMeta: { fontSize: 11 },
+  audioPlayButton: { width: 34, height: 34, borderRadius: 12, alignItems: "center", justifyContent: "center" },
   savedPill: { borderRadius: 9, paddingHorizontal: 8, paddingVertical: 5 },
   savedText: { fontSize: 10, fontWeight: "800" },
   sectionTitle: { fontSize: 11, fontWeight: "800", letterSpacing: 1.2, marginTop: 16, marginLeft: 4 },
