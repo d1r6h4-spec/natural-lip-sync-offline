@@ -1,0 +1,6 @@
+TRPCError: Replicate request failed (402): {"title":"Insufficient credit","detail":"You have insufficient credit to run this model. Go to https://replicate.com/account/billing#billing to purchase credit. Once you purchase credit, please wait a few minutes before trying again.","status":402}
+
+    at replicateFetch (/home/ubuntu/natural-lipsync-app/server/lipsync.ts:79:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async createPrediction (/home/ubuntu/natural-lipsync-app/server/lipsync.ts:182:20)
+    at async main (/home/ubuntu/natural-lipsync-app/scripts/live-video-lipsync-test.ts:24:15)

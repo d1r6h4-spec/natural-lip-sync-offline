@@ -41,3 +41,7 @@
 - [x] Memilih adapter VideoReTalking untuk input video dan audio, tetap memakai SadTalker untuk foto
 - [x] Memvalidasi TypeScript, lint, test, dan build server setelah integrasi preprocessing video
 - [ ] Menjalankan inference live video-to-lipsync dengan media nyata untuk memverifikasi output provider end-to-end
+- [x] Menyiapkan skrip test automated untuk menguji presigned upload dan pembuatan prediksi live ke Replicate
+- [x] Memperbaiki endpoint VideoReTalking dari model route yang mengembalikan 404 ke endpoint `/v1/predictions` berbasis versi
+- [x] Menjalankan uji dengan video wajah dan audio publik, termasuk trim 20–80 persen, sampai provider menerima request
+- [ ] Mengulang inference setelah kredit Replicate tersedia dan memverifikasi video output secara end-to-end

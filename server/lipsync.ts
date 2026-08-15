@@ -13,7 +13,7 @@ import { storageCreateUploadUrl, storageGetSignedUrl, storagePut } from "./stora
 
 const REPLICATE_API = "https://api.replicate.com/v1";
 const SADTALKER_VERSION = ENV.replicateSadTalkerVersion;
-const VIDEO_RETALKING_MODEL = "chenxwh/video-retalking";
+const VIDEO_RETALKING_VERSION = ENV.replicateVideoRetalkingVersion;
 const execFileAsync = promisify(execFile);
 
 const uploadInput = z.object({
@@ -179,10 +179,11 @@ export async function createPrediction(input: z.infer<typeof renderInput>) {
     ? await prepareVideoForInference(sourceUrl, input.videoTrimStart, input.videoTrimEnd)
     : sourceUrl;
   const isVideoSource = input.sourceType === "video";
-  const response = await replicateFetch(isVideoSource ? `/models/${VIDEO_RETALKING_MODEL}/predictions` : "/predictions", {
+  const response = await replicateFetch("/predictions", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(isVideoSource ? {
+      version: VIDEO_RETALKING_VERSION,
       input: buildVideoRetalkingInput(inferenceSourceUrl, audioUrl),
     } : {
       version: SADTALKER_VERSION,
