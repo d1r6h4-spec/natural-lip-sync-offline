@@ -45,3 +45,7 @@
 - [x] Memperbaiki endpoint VideoReTalking dari model route yang mengembalikan 404 ke endpoint `/v1/predictions` berbasis versi
 - [x] Menjalankan uji dengan video wajah dan audio publik, termasuk trim 20–80 persen, sampai provider menerima request
 - [ ] Mengulang inference setelah kredit Replicate tersedia dan memverifikasi video output secara end-to-end
+- [x] Menambahkan indikator persentase 0-100% di layar Processing dengan pemetaan tahapan upload, trim, antrean, inference, dan finalisasi
+- [x] Menambahkan pesan ramah pengguna untuk error HTTP 402 Insufficient Credit pada alur Create dan Processing
+- [x] Memvalidasi tampilan progress bar 0-100% pada viewport mobile
+- [x] Menyimpan checkpoint final setelah seluruh pemeriksaan kualitas selesai

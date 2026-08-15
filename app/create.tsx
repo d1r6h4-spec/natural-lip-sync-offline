@@ -21,6 +21,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { BUILTIN_AUDIO_TRACKS, type AudioTrack } from "@/constants/audioLibrary";
 import { trpc } from "@/lib/trpc";
+import { friendlyLipSyncError, isProviderCreditError } from "@/lib/lipsync-error";
 
 type SourceMedia = {
   uri: string;
@@ -234,7 +235,10 @@ export default function CreateScreen() {
         },
       });
     } catch (error) {
-      Alert.alert("Could not start render", error instanceof Error ? error.message : "Please check your connection and try again.");
+      Alert.alert(
+        isProviderCreditError(error) ? "Provider Credit Required" : "Could not start render",
+        friendlyLipSyncError(error),
+      );
     } finally {
       setIsSubmitting(false);
     }

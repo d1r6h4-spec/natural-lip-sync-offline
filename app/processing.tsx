@@ -7,6 +7,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { trpc } from "@/lib/trpc";
+import { friendlyLipSyncError, isProviderCreditError } from "@/lib/lipsync-error";
 
 const stages = [
   { label: "Reading audio", detail: "Preparing the reference voice track" },
@@ -42,6 +43,7 @@ export default function ProcessingScreen() {
   );
   const jobId = params.jobId;
   const [canceling, setCanceling] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const statusQuery = trpc.lipsync.status.useQuery(
     { jobId: jobId ?? "" },
     {
@@ -59,23 +61,46 @@ export default function ProcessingScreen() {
   }, []);
 
   useEffect(() => {
+    if (!jobId) return;
+    setElapsedSeconds(0);
+    const startedAt = Date.now();
+    const timer = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [jobId]);
+
+  useEffect(() => {
     if (statusQuery.data?.status !== "succeeded" || !statusQuery.data.outputUrl) return;
-    router.replace({
-      pathname: "/result",
-      params: {
-        ...params,
-        outputUrl: statusQuery.data.outputUrl,
-        jobStatus: "succeeded",
-      },
-    });
+    const timer = setTimeout(() => {
+      router.replace({
+        pathname: "/result",
+        params: {
+          ...params,
+          outputUrl: statusQuery.data?.outputUrl ?? "",
+          jobStatus: "succeeded",
+        },
+      });
+    }, 900);
+    return () => clearTimeout(timer);
   }, [params, statusQuery.data?.outputUrl, statusQuery.data?.status]);
 
-  const progress = jobId ? Math.round((statusQuery.data?.progress ?? (statusQuery.isLoading ? 0.08 : 0)) * 100) : 0;
-  const failedMessage = statusQuery.data?.error ?? statusQuery.error?.message ?? (!jobId ? "This project does not have a remote render job." : null);
-  const statusLabel = statusQuery.data?.status === "queued" ? "queued" : statusQuery.data?.status === "processing" ? "rendering" : statusQuery.data?.status ?? "connecting";
+  const status = statusQuery.data?.status;
+  const serverProgress = statusQuery.data?.progress ?? (statusQuery.isLoading ? 0.08 : 0);
+  const estimatedProgress = status === "queued"
+    ? Math.min(0.28, Math.max(serverProgress, 0.08 + elapsedSeconds * 0.018))
+    : status === "processing"
+      ? Math.min(0.94, Math.max(serverProgress, 0.56 + elapsedSeconds * 0.01))
+      : serverProgress;
+  const progress = jobId ? Math.round(estimatedProgress * 100) : 0;
+  const rawError = statusQuery.data?.error ?? statusQuery.error ?? (!jobId ? "This project does not have a remote render job." : null);
+  const providerCreditError = isProviderCreditError(rawError);
+  const failedMessage = rawError ? friendlyLipSyncError(rawError) : null;
+  const statusLabel = status === "queued" ? "queued" : status === "processing" ? "rendering" : status ?? "connecting";
   const stageIndex = Math.min(stages.length - 1, Math.floor(progress / 25));
   const sourceLabel = params.sourceType === "video" ? "Video source" : "Portrait source";
   const progressLabel = `${progress}%`;
+  const isEstimated = status === "queued" || status === "processing";
 
   const handleCancel = async () => {
     if (!jobId) {
@@ -109,8 +134,18 @@ export default function ProcessingScreen() {
               <Text style={[styles.progressCaption, { color: failedMessage ? colors.error : colors.muted }]}>{failedMessage ? "needs attention" : statusLabel}</Text>
             </View>
           </View>
-          <Text style={[styles.title, { color: colors.foreground }]}>{failedMessage ? "Render needs attention" : "Building your sync"}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{failedMessage ? providerCreditError ? "Provider credit required" : "Render needs attention" : "Building your sync"}</Text>
           <Text style={[styles.subtitle, { color: colors.muted }]}>{failedMessage ? failedMessage : params.sourceType === "video" ? "The AI is preserving your video motion while matching the reference audio. This can take about a minute." : "SadTalker is animating your image from the reference audio. This can take about a minute."}</Text>
+        </View>
+
+        <View style={styles.progressMeter}>
+          <View style={styles.progressMetaRow}>
+            <Text style={[styles.progressMetaLabel, { color: colors.muted }]}>{isEstimated ? "ESTIMATED PROGRESS" : "PROGRESS"}</Text>
+            <Text style={[styles.progressMetaValue, { color: failedMessage ? colors.error : colors.foreground }]}>{progressLabel}</Text>
+          </View>
+          <View style={[styles.progressTrack, { backgroundColor: `${colors.primary}18` }]}>
+            <View style={[styles.progressFill, { width: `${Math.min(100, progress)}%`, backgroundColor: failedMessage ? colors.error : colors.primary }]} />
+          </View>
         </View>
 
         {!failedMessage ? (
@@ -135,7 +170,7 @@ export default function ProcessingScreen() {
         ) : (
           <View style={[styles.errorCard, { backgroundColor: `${colors.error}10`, borderColor: `${colors.error}35` }]}>
             <IconSymbol name="exclamationmark.triangle.fill" size={20} color={colors.error} />
-            <Text style={[styles.errorText, { color: colors.foreground }]}>Check the server configuration and try starting the sync again.</Text>
+            <Text style={[styles.errorText, { color: colors.foreground }]}>{providerCreditError ? "Add Replicate credits, then start the sync again. Your selected media and trim settings are still safe." : "Check the server configuration and try starting the sync again."}</Text>
           </View>
         )}
 
@@ -167,7 +202,13 @@ const styles = StyleSheet.create({
   progressCaption: { fontSize: 12, fontWeight: "700", marginTop: 1 },
   title: { fontSize: 25, lineHeight: 31, fontWeight: "800", marginTop: 27, textAlign: "center" },
   subtitle: { fontSize: 13, lineHeight: 19, textAlign: "center", marginTop: 7 },
-  stageList: { marginTop: 35, gap: 15 },
+  progressMeter: { marginTop: 28, gap: 8 },
+  progressMetaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  progressMetaLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1.1 },
+  progressMetaValue: { fontSize: 14, fontWeight: "800" },
+  progressTrack: { height: 8, borderRadius: 8, overflow: "hidden" },
+  progressFill: { height: "100%", borderRadius: 8 },
+  stageList: { marginTop: 26, gap: 15 },
   stageRow: { flexDirection: "row", alignItems: "center", gap: 11 },
   stageIcon: { width: 30, height: 30, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   stageNumber: { fontSize: 12, fontWeight: "800" },
