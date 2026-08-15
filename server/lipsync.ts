@@ -91,8 +91,10 @@ function expressionScale(style: z.infer<typeof renderInput>["style"], intensity:
 }
 
 export function buildSadTalkerInput(input: z.infer<typeof renderInput>, sourceUrl: string, audioUrl: string) {
+  const isVideoSource = input.sourceType === "video";
   return {
-    source_image: sourceUrl,
+    source_image: isVideoSource ? undefined : sourceUrl,
+    driven_video: isVideoSource ? sourceUrl : undefined,
     driven_audio: audioUrl,
     use_enhancer: true,
     pose_style: 0,

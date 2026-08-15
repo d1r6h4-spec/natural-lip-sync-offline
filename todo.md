@@ -31,3 +31,6 @@
 - [x] Menyimpan dokumentasi arsitektur integrasi AI backend
 - [x] Memvalidasi kredensial Replicate dan schema input SadTalker melalui test backend
 - [ ] Menjalankan satu inference live dengan foto dan audio nyata untuk memverifikasi output video end-to-end
+- [x] Memeriksa penanganan source type video pada router lipsync dan adapter SadTalker
+- [x] Menambahkan dukungan video input pada schema backend Lipsync
+- [x] Memastikan pemutaran dan pengiriman video-to-lipsync berfungsi lancar di mobile
