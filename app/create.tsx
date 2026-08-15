@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
@@ -16,6 +16,7 @@ import {
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { BUILTIN_AUDIO_TRACKS, type AudioTrack } from "@/constants/audioLibrary";
 
 type SourceMedia = {
   uri: string;
@@ -41,6 +42,8 @@ export default function CreateScreen() {
   const recorderState = useAudioRecorderState(recorder);
   const [media, setMedia] = useState<SourceMedia | null>(null);
   const [audio, setAudio] = useState<AudioSource | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryCategory, setLibraryCategory] = useState<"All" | AudioTrack["category"]>("All");
   const [style, setStyle] = useState<(typeof stylesList)[number]["key"]>("Natural");
   const [intensity, setIntensity] = useState<"Low" | "Balanced" | "High">("Balanced");
   const audioPlayer = useAudioPlayer(audio?.uri ?? null);
@@ -55,6 +58,17 @@ export default function CreateScreen() {
     if (!seconds) return "Ready to sync";
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
   }, [audio?.duration, audioStatus.duration]);
+
+  const visibleTracks = useMemo(
+    () => libraryCategory === "All" ? BUILTIN_AUDIO_TRACKS : BUILTIN_AUDIO_TRACKS.filter((track) => track.category === libraryCategory),
+    [libraryCategory],
+  );
+
+  const selectBuiltinTrack = (track: AudioTrack) => {
+    const [minutes, seconds] = track.duration.split(":").map(Number);
+    setAudio({ uri: track.previewUrl, name: track.title, duration: minutes * 60 + seconds });
+    setLibraryOpen(false);
+  };
 
   const pickMedia = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -183,6 +197,11 @@ export default function CreateScreen() {
               <Text style={[styles.secondaryButtonText, { color: recorderState.isRecording ? colors.error : colors.foreground }]}>{recorderState.isRecording ? "Stop" : "Record"}</Text>
             </Pressable>
           </View>
+          <Pressable onPress={() => setLibraryOpen(true)} style={({ pressed }) => [styles.libraryButton, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}35` }, pressed && { opacity: 0.72 }]}>
+            <IconSymbol name="sparkles" size={17} color={colors.primary} />
+            <View style={styles.flexOne}><Text style={[styles.libraryButtonTitle, { color: colors.primary }]}>Browse built-in sounds</Text><Text style={[styles.libraryButtonHint, { color: colors.muted }]}>Original demo clips for quick tests</Text></View>
+            <IconSymbol name="chevron.right" size={16} color={colors.primary} />
+          </Pressable>
           {audio ? (
             <Pressable onPress={() => (audioStatus.playing ? audioPlayer.pause() : audioPlayer.play())} style={({ pressed }) => [styles.audioPreview, { backgroundColor: `${colors.primary}10` }, pressed && { opacity: 0.7 }]}>
               <IconSymbol name={audioStatus.playing ? "chevron.right" : "play.fill"} size={17} color={colors.primary} />
@@ -220,6 +239,36 @@ export default function CreateScreen() {
         </Pressable>
         <Text style={[styles.privacy, { color: colors.muted }]}>Your media stays on this device in this prototype.</Text>
       </ScrollView>
+      <Modal visible={libraryOpen} transparent animationType="slide" onRequestClose={() => setLibraryOpen(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.librarySheet, { backgroundColor: colors.background }]}>
+            <View style={styles.libraryHeader}>
+              <View style={styles.flexOne}><Text style={[styles.libraryEyebrow, { color: colors.primary }]}>BUILT-IN AUDIO</Text><Text style={[styles.libraryTitle, { color: colors.foreground }]}>Find your sound</Text></View>
+              <Pressable onPress={() => setLibraryOpen(false)} style={({ pressed }) => [styles.closeButton, { backgroundColor: colors.surface }, pressed && { opacity: 0.6 }]}><Text style={[styles.closeText, { color: colors.foreground }]}>×</Text></Pressable>
+            </View>
+            <Text style={[styles.librarySubtitle, { color: colors.muted }]}>Short, original demo clips inspired by social formats. Tap a track to use it.</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
+              {(["All", "Viral", "Comedy", "Cinematic", "Narration"] as const).map((category) => (
+                <Pressable key={category} onPress={() => setLibraryCategory(category)} style={({ pressed }) => [styles.categoryPill, { backgroundColor: libraryCategory === category ? colors.primary : colors.surface, borderColor: libraryCategory === category ? colors.primary : colors.border }, pressed && { opacity: 0.72 }]}><Text style={[styles.categoryText, { color: libraryCategory === category ? "#fff" : colors.muted }]}>{category}</Text></Pressable>
+              ))}
+            </ScrollView>
+            <FlatList
+              data={visibleTracks}
+              keyExtractor={(item) => item.id}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.trackList}
+              renderItem={({ item }) => {
+                const selected = audio?.uri === item.previewUrl;
+                return <Pressable onPress={() => selectBuiltinTrack(item)} style={({ pressed }) => [styles.trackRow, { backgroundColor: colors.surface, borderColor: selected ? colors.primary : colors.border }, pressed && { opacity: 0.72 }]}>
+                  <View style={[styles.trackBadge, { backgroundColor: `${colors.primary}16` }]}><IconSymbol name={selected && audioStatus.playing ? "pause.fill" : "play.fill"} size={17} color={colors.primary} /></View>
+                  <View style={styles.flexOne}><Text style={[styles.trackTitle, { color: colors.foreground }]} numberOfLines={1}>{item.title}</Text><Text style={[styles.trackMeta, { color: colors.muted }]}>{item.category} · {item.duration} · {item.author}</Text></View>
+                  <Text style={[styles.useText, { color: colors.primary }]}>{selected ? "Selected" : "Use"}</Text>
+                </Pressable>;
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
@@ -251,6 +300,9 @@ const styles = StyleSheet.create({
   removeText: { fontSize: 12, fontWeight: "800" },
   audioActions: { flexDirection: "row", gap: 9 },
   secondaryButton: { flex: 1, minHeight: 42, borderRadius: 13, borderWidth: 1, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
+  libraryButton: { minHeight: 53, borderRadius: 15, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 12 },
+  libraryButtonTitle: { fontSize: 12, fontWeight: "800" },
+  libraryButtonHint: { fontSize: 10, marginTop: 2 },
   secondaryButtonText: { fontSize: 12, fontWeight: "800" },
   audioPreview: { minHeight: 42, borderRadius: 13, flexDirection: "row", alignItems: "center", gap: 9, paddingHorizontal: 12 },
   audioPreviewText: { fontSize: 12, fontWeight: "800", flex: 1 },
@@ -267,4 +319,21 @@ const styles = StyleSheet.create({
   primaryButton: { minHeight: 54, borderRadius: 17, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, marginTop: 16 },
   primaryButtonText: { color: "#fff", fontSize: 15, fontWeight: "800", flex: 1 },
   privacy: { textAlign: "center", fontSize: 11, marginTop: 1 },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(15, 27, 31, 0.46)", justifyContent: "flex-end" },
+  librarySheet: { maxHeight: "86%", borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 30 },
+  libraryHeader: { flexDirection: "row", alignItems: "center", gap: 12 },
+  libraryEyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1.4 },
+  libraryTitle: { fontSize: 25, lineHeight: 31, fontWeight: "800", marginTop: 3 },
+  closeButton: { width: 36, height: 36, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  closeText: { fontSize: 26, lineHeight: 28, fontWeight: "400", marginTop: -2 },
+  librarySubtitle: { fontSize: 12, lineHeight: 17, marginTop: 8, maxWidth: 330 },
+  categoryRow: { gap: 8, paddingVertical: 15 },
+  categoryPill: { borderRadius: 13, borderWidth: 1, paddingHorizontal: 13, paddingVertical: 8 },
+  categoryText: { fontSize: 11, fontWeight: "800" },
+  trackList: { gap: 9, paddingBottom: 10 },
+  trackRow: { minHeight: 67, borderRadius: 17, borderWidth: 1, padding: 10, flexDirection: "row", alignItems: "center", gap: 10 },
+  trackBadge: { width: 36, height: 36, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  trackTitle: { fontSize: 12, fontWeight: "800" },
+  trackMeta: { fontSize: 10, marginTop: 3 },
+  useText: { fontSize: 11, fontWeight: "800" },
 });

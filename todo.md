@@ -12,3 +12,7 @@
 - [x] Menambahkan native share sheet untuk video hasil lip-sync dengan target TikTok, Instagram, WhatsApp, dan aplikasi lain yang tersedia
 - [x] Menambahkan fallback berbagi umum ketika aplikasi sosial tertentu tidak tersedia
 - [x] Memvalidasi alur berbagi pada layar Result dan menjalankan pemeriksaan proyek ulang
+- [x] Membuat katalog audio bawaan (Viral / Trending, Comedy & Memes, Cinematic, Speech & Narration)
+- [x] Membangun antarmuka Audio Library modal / picker di layar Create
+- [x] Mengintegrasikan pemutaran pratinjau audio dengan expo-audio
+- [x] Memvalidasi alur pemilihan audio dan memastikan tidak ada error pada TypeScript dan lint
