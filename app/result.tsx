@@ -17,6 +17,8 @@ type Project = {
   sourceType: string;
   audioName: string;
   audioUri: string;
+  outputUrl?: string;
+  jobId?: string;
   style: string;
   intensity: string;
   trimStart: string;
@@ -27,12 +29,15 @@ type Project = {
 
 export default function ResultScreen() {
   const colors = useColors();
-  const params = useLocalSearchParams<{ sourceUri?: string; sourceType?: string; audioUri?: string; audioName?: string; style?: string; intensity?: string; trimStart?: string; trimEnd?: string }>();
+  const params = useLocalSearchParams<{ sourceUri?: string; sourceType?: string; audioUri?: string; audioName?: string; outputUrl?: string; jobId?: string; style?: string; intensity?: string; trimStart?: string; trimEnd?: string }>();
   const [saved, setSaved] = useState(false);
   const [sharing, setSharing] = useState(false);
   const sourceUri = params.sourceUri ?? "";
+  const outputUrl = params.outputUrl ?? "";
   const isVideo = params.sourceType === "video";
-  const videoPlayer = useVideoPlayer(isVideo ? sourceUri : null, (player) => {
+  const videoUri = outputUrl || (isVideo ? sourceUri : "");
+  const hasVideo = Boolean(videoUri);
+  const videoPlayer = useVideoPlayer(hasVideo ? videoUri : null, (player) => {
     player.loop = true;
   });
   const audioPlayer = useAudioPlayer(params.audioUri ?? null);
@@ -47,31 +52,33 @@ export default function ResultScreen() {
     sourceType: params.sourceType ?? "image",
     audioName: params.audioName ?? "Voice track",
     audioUri: params.audioUri ?? "",
+    outputUrl: outputUrl || undefined,
+    jobId: params.jobId,
     style: params.style ?? "Natural",
     intensity: params.intensity ?? "Balanced",
     trimStart: params.trimStart ?? "0",
     trimEnd: params.trimEnd ?? "full",
     createdAt: new Date().toISOString(),
     status: "Completed",
-  }), [params.audioName, params.audioUri, params.intensity, params.sourceType, params.style, params.trimEnd, params.trimStart, sourceUri]);
+  }), [outputUrl, params.audioName, params.audioUri, params.intensity, params.jobId, params.sourceType, params.style, params.trimEnd, params.trimStart, sourceUri]);
 
   useEffect(() => {
     void setAudioModeAsync({ playsInSilentMode: true });
   }, []);
 
   useEffect(() => {
-    const shouldAnimate = !isVideo && Boolean(params.audioUri) && audioStatus.playing;
+    const shouldAnimate = !hasVideo && Boolean(params.audioUri) && audioStatus.playing;
     const target = shouldAnimate ? 0.55 + ((Math.sin(audioStatus.currentTime * 13) + 1) / 2) * 0.45 : 0;
     const animation = Animated.timing(mouthPulse, { toValue: target, duration: 110, easing: Easing.out(Easing.quad), useNativeDriver: true });
     animation.start();
     return () => mouthPulse.stopAnimation();
-  }, [audioStatus.currentTime, audioStatus.playing, isVideo, mouthPulse, params.audioUri]);
+  }, [audioStatus.currentTime, audioStatus.playing, hasVideo, mouthPulse, params.audioUri]);
 
   useEffect(() => {
-    if (!isVideo && audioStatus.playing && trimEndSeconds > trimStartSeconds && audioStatus.currentTime >= trimEndSeconds) {
+    if (!hasVideo && audioStatus.playing && trimEndSeconds > trimStartSeconds && audioStatus.currentTime >= trimEndSeconds) {
       audioPlayer.pause();
     }
-  }, [audioPlayer, audioStatus.currentTime, audioStatus.playing, isVideo, trimEndSeconds, trimStartSeconds]);
+  }, [audioPlayer, audioStatus.currentTime, audioStatus.playing, hasVideo, trimEndSeconds, trimStartSeconds]);
 
   const toggleAudioPreview = () => {
     if (!params.audioUri) {
@@ -106,8 +113,8 @@ export default function ResultScreen() {
     setSharing(true);
     try {
       const shareAvailable = await Sharing.isAvailableAsync();
-      if (Platform.OS !== "web" && isVideo && sourceUri && shareAvailable) {
-        await Sharing.shareAsync(sourceUri, {
+      if (Platform.OS !== "web" && hasVideo && videoUri && shareAvailable) {
+        await Sharing.shareAsync(videoUri, {
           dialogTitle: "Share your lip-sync",
           mimeType: "video/mp4",
           UTI: "public.movie",
@@ -115,8 +122,8 @@ export default function ResultScreen() {
         return;
       }
       await Share.share({
-        message: isVideo
-          ? `Natural Lip-Sync preview · ${project.style} · ${project.audioName}`
+        message: hasVideo
+          ? `Natural Lip-Sync video · ${project.style} · ${project.audioName}`
           : "Your lip-sync preview is ready. A rendered video file is needed before sharing to a social platform.",
         title: "Natural Lip-Sync",
       });
@@ -146,7 +153,7 @@ export default function ResultScreen() {
         </View>
 
         <View style={[styles.previewFrame, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          {isVideo && sourceUri ? (
+          {hasVideo ? (
             <VideoView player={videoPlayer} style={styles.preview} allowsFullscreen allowsPictureInPicture contentFit="cover" />
           ) : sourceUri ? (
             <View style={styles.imagePreviewWrap}>
@@ -161,7 +168,7 @@ export default function ResultScreen() {
           ) : (
             <View style={styles.emptyPreview}><IconSymbol name="video.fill" size={32} color={colors.primary} /><Text style={[styles.emptyText, { color: colors.muted }]}>Preview source unavailable</Text></View>
           )}
-          <View style={[styles.previewTag, { backgroundColor: "rgba(0,0,0,0.58)" }]}><IconSymbol name="sparkles" size={13} color="#fff" /><Text style={styles.previewTagText}>Natural preview</Text></View>
+          <View style={[styles.previewTag, { backgroundColor: "rgba(0,0,0,0.58)" }]}><IconSymbol name="sparkles" size={13} color="#fff" /><Text style={styles.previewTagText}>{outputUrl ? "AI rendered" : "Natural preview"}</Text></View>
         </View>
 
         <View style={[styles.audioBanner, { backgroundColor: `${colors.primary}12`, borderColor: `${colors.primary}2f` }]}>
@@ -180,7 +187,7 @@ export default function ResultScreen() {
         </View>
 
         <View style={[styles.prototypeNote, { backgroundColor: `${colors.warning}12`, borderColor: `${colors.warning}35` }]}>
-          <Text style={[styles.prototypeNoteText, { color: colors.muted }]}>{isVideo ? "Choose a social app below to pass the video into its composer." : params.audioUri ? "Image preview keeps the source photo visible while the selected audio and sync timing are active. Face-specific mouth warping requires the production renderer." : "Add an audio reference to activate image-to-lip-sync preview."}</Text>
+          <Text style={[styles.prototypeNoteText, { color: colors.muted }]}>{outputUrl ? "This video was generated by SadTalker from your photo and audio reference. Choose a social app below to share it." : hasVideo ? "Choose a social app below to pass the local video into its composer." : params.audioUri ? "Image preview keeps the source photo visible while the selected audio and sync timing are active. Start a new render to generate the animated video." : "Add an audio reference to activate image-to-lip-sync preview."}</Text>
         </View>
         <Text style={[styles.sectionTitle, { color: colors.muted }]}>SHARE TO SOCIAL</Text>
         <View style={styles.socialGrid}>

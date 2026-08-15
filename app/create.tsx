@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Alert, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
@@ -18,6 +19,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { BUILTIN_AUDIO_TRACKS, type AudioTrack } from "@/constants/audioLibrary";
+import { trpc } from "@/lib/trpc";
 
 type SourceMedia = {
   uri: string;
@@ -30,6 +32,28 @@ type AudioSource = {
   name: string;
   duration?: number;
 };
+
+type PreparedMedia =
+  | { key: string; url?: never }
+  | { key?: never; url: string };
+
+function contentTypeFor(nameOrUri: string, fallback: "image" | "video" | "audio") {
+  const extension = nameOrUri.split("?")[0].split(".").pop()?.toLowerCase();
+  const map: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    mp4: "video/mp4",
+    mov: "video/quicktime",
+    mp3: "audio/mpeg",
+    m4a: "audio/mp4",
+    wav: "audio/wav",
+    aac: "audio/aac",
+    ogg: "audio/ogg",
+  };
+  return map[extension ?? ""] ?? (fallback === "image" ? "image/jpeg" : fallback === "video" ? "video/mp4" : "audio/mpeg");
+}
 
 const stylesList = [
   { key: "Natural", label: "Natural", description: "Soft, human timing" },
@@ -49,6 +73,9 @@ export default function CreateScreen() {
   const [libraryCategory, setLibraryCategory] = useState<"All" | AudioTrack["category"]>("All");
   const [style, setStyle] = useState<(typeof stylesList)[number]["key"]>("Natural");
   const [intensity, setIntensity] = useState<"Low" | "Balanced" | "High">("Balanced");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const prepareUploadMutation = trpc.lipsync.prepareUpload.useMutation();
+  const createJobMutation = trpc.lipsync.create.useMutation();
   const audioPlayer = useAudioPlayer(audio?.uri ?? null);
   const audioStatus = useAudioPlayerStatus(audioPlayer);
 
@@ -140,7 +167,23 @@ export default function CreateScreen() {
     recorder.record();
   };
 
-  const startGeneration = () => {
+  const uploadLocalMedia = async (uri: string, fileName: string, mediaType: "image" | "video" | "audio"): Promise<PreparedMedia> => {
+    if (/^https?:\/\//i.test(uri)) return { url: uri };
+
+    const contentType = contentTypeFor(fileName || uri, mediaType);
+    const prepared = await prepareUploadMutation.mutateAsync({ fileName, contentType, mediaType });
+    const uploadResult = await FileSystem.uploadAsync(prepared.uploadUrl, uri, {
+      httpMethod: "PUT",
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      headers: { "Content-Type": contentType },
+    });
+    if (uploadResult.status < 200 || uploadResult.status >= 300) {
+      throw new Error(`Media upload failed (${uploadResult.status})`);
+    }
+    return { key: prepared.key };
+  };
+
+  const startGeneration = async () => {
     if (!media) {
       Alert.alert("Add a face source", "Choose a photo or video before starting the lip-sync.");
       return;
@@ -149,19 +192,40 @@ export default function CreateScreen() {
       Alert.alert("Add an audio track", "Upload an audio file or record a voice track before starting.");
       return;
     }
-    router.push({
-      pathname: "/processing",
-      params: {
-        sourceUri: media.uri,
+
+    setIsSubmitting(true);
+    try {
+      const sourceMedia = await uploadLocalMedia(media.uri, media.fileName ?? `face-source.${media.type === "image" ? "jpg" : "mp4"}`, media.type);
+      const audioMedia = await uploadLocalMedia(audio.uri, audio.name || "voice-track.m4a", "audio");
+      const job = await createJobMutation.mutateAsync({
+        ...(sourceMedia.key ? { sourceKey: sourceMedia.key } : { sourceUrl: sourceMedia.url }),
+        ...(audioMedia.key ? { audioKey: audioMedia.key } : { audioUrl: audioMedia.url }),
         sourceType: media.type,
-        audioUri: audio.uri,
-        audioName: audio.name,
         style,
         intensity,
-        trimStart: String(trimStart),
-        trimEnd: String(trimEnd),
-      },
-    });
+        trimStart,
+        trimEnd,
+      });
+
+      router.push({
+        pathname: "/processing",
+        params: {
+          jobId: job.jobId,
+          sourceUri: media.uri,
+          sourceType: media.type,
+          audioUri: audio.uri,
+          audioName: audio.name,
+          style,
+          intensity,
+          trimStart: String(trimStart),
+          trimEnd: String(trimEnd),
+        },
+      });
+    } catch (error) {
+      Alert.alert("Could not start render", error instanceof Error ? error.message : "Please check your connection and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -259,12 +323,12 @@ export default function CreateScreen() {
           </View>
         </View>
 
-        <Pressable onPress={startGeneration} style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.primary }, pressed && { transform: [{ scale: 0.98 }], opacity: 0.88 }]}>
-          <IconSymbol name="sparkles" size={19} color="#fff" />
-          <Text style={styles.primaryButtonText}>Start natural sync</Text>
-          <IconSymbol name="chevron.right" size={18} color="#fff" />
+        <Pressable onPress={startGeneration} disabled={isSubmitting} style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.primary }, pressed && { transform: [{ scale: 0.98 }], opacity: 0.88 }, isSubmitting && { opacity: 0.65 }]}>
+          {isSubmitting ? <ActivityIndicator size="small" color="#fff" /> : <IconSymbol name="sparkles" size={19} color="#fff" />}
+          <Text style={styles.primaryButtonText}>{isSubmitting ? "Uploading & rendering…" : "Start natural sync"}</Text>
+          {!isSubmitting ? <IconSymbol name="chevron.right" size={18} color="#fff" /> : null}
         </Pressable>
-        <Text style={[styles.privacy, { color: colors.muted }]}>Your media stays on this device in this prototype.</Text>
+        <Text style={[styles.privacy, { color: colors.muted }]}>Your media is uploaded securely for AI rendering and removed according to the provider&apos;s retention policy.</Text>
       </ScrollView>
       <Modal visible={libraryOpen} transparent animationType="slide" onRequestClose={() => setLibraryOpen(false)}>
         <View style={styles.modalBackdrop}>

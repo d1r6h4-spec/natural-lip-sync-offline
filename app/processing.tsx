@@ -1,95 +1,151 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { setAudioModeAsync } from "expo-audio";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { trpc } from "@/lib/trpc";
 
 const stages = [
-  { label: "Analyzing audio", detail: "Finding syllables and natural pauses" },
-  { label: "Mapping mouth movement", detail: "Matching phonemes to facial timing" },
+  { label: "Reading audio", detail: "Preparing the reference voice track" },
+  { label: "Driving facial motion", detail: "Matching mouth and expression timing" },
   { label: "Smoothing expression", detail: "Balancing eye and head motion" },
-  { label: "Preparing preview", detail: "Packaging your local result" },
+  { label: "Preparing result", detail: "Packaging your generated video" },
 ];
+
+type ProcessingParams = {
+  jobId?: string;
+  sourceUri?: string;
+  sourceType?: string;
+  audioUri?: string;
+  audioName?: string;
+  style?: string;
+  intensity?: string;
+  trimStart?: string;
+  trimEnd?: string;
+};
+
+function first(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 export default function ProcessingScreen() {
   const colors = useColors();
-  const params = useLocalSearchParams<{ sourceUri?: string; sourceType?: string; audioUri?: string; audioName?: string; style?: string; intensity?: string; trimStart?: string; trimEnd?: string }>();
-  const [progress, setProgress] = useState(0);
-  const completedRef = useRef(false);
+  const rawParams = useLocalSearchParams<ProcessingParams>();
+  const params = useMemo(
+    () => Object.fromEntries(Object.entries(rawParams).map(([key, value]) => [key, first(value)])) as ProcessingParams,
+    [rawParams],
+  );
+  const jobId = params.jobId;
+  const [canceling, setCanceling] = useState(false);
+  const statusQuery = trpc.lipsync.status.useQuery(
+    { jobId: jobId ?? "" },
+    {
+      enabled: Boolean(jobId),
+      refetchInterval: (query) => {
+        const status = query.state.data?.status;
+        return status === "succeeded" || status === "failed" || status === "canceled" ? false : 1800;
+      },
+    },
+  );
+  const cancelMutation = trpc.lipsync.cancel.useMutation();
 
   useEffect(() => {
     void setAudioModeAsync({ playsInSilentMode: true });
-    const startedAt = Date.now();
-    const timer = setInterval(() => {
-      const next = Math.min(100, Math.round(((Date.now() - startedAt) / 7200) * 100));
-      setProgress(next);
-      if (next >= 100) {
-        clearInterval(timer);
-        if (!completedRef.current) {
-          completedRef.current = true;
-          router.replace({ pathname: "/result", params });
-        }
-      }
-    }, 160);
-    return () => clearInterval(timer);
-  }, [params]);
+  }, []);
 
+  useEffect(() => {
+    if (statusQuery.data?.status !== "succeeded" || !statusQuery.data.outputUrl) return;
+    router.replace({
+      pathname: "/result",
+      params: {
+        ...params,
+        outputUrl: statusQuery.data.outputUrl,
+        jobStatus: "succeeded",
+      },
+    });
+  }, [params, statusQuery.data?.outputUrl, statusQuery.data?.status]);
+
+  const progress = jobId ? Math.round((statusQuery.data?.progress ?? (statusQuery.isLoading ? 0.08 : 0)) * 100) : 0;
+  const failedMessage = statusQuery.data?.error ?? statusQuery.error?.message ?? (!jobId ? "This project does not have a remote render job." : null);
+  const statusLabel = statusQuery.data?.status === "queued" ? "queued" : statusQuery.data?.status === "processing" ? "rendering" : statusQuery.data?.status ?? "connecting";
   const stageIndex = Math.min(stages.length - 1, Math.floor(progress / 25));
   const sourceLabel = params.sourceType === "video" ? "Video source" : "Portrait source";
-  const progressLabel = useMemo(() => `${progress}%`, [progress]);
+  const progressLabel = `${progress}%`;
+
+  const handleCancel = async () => {
+    if (!jobId) {
+      router.back();
+      return;
+    }
+    setCanceling(true);
+    try {
+      await cancelMutation.mutateAsync({ jobId });
+      router.back();
+    } catch (error) {
+      Alert.alert("Could not cancel", error instanceof Error ? error.message : "Please try again.");
+      setCanceling(false);
+    }
+  };
 
   return (
     <ScreenContainer className="px-5" containerClassName="bg-background" edges={["top", "left", "right", "bottom"]}>
       <View style={styles.container}>
         <View style={styles.topRow}>
           <View style={[styles.brandMark, { backgroundColor: `${colors.primary}18` }]}><IconSymbol name="sparkles" size={20} color={colors.primary} /></View>
-          <Text style={[styles.topLabel, { color: colors.muted }]}>NATURAL ENGINE</Text>
+          <Text style={[styles.topLabel, { color: colors.muted }]}>SADTALKER ENGINE</Text>
           <View style={{ flex: 1 }} />
-          <Text style={[styles.topLabel, { color: colors.muted }]}>LOCAL PREVIEW</Text>
+          <Text style={[styles.topLabel, { color: colors.muted }]}>{statusLabel.toUpperCase()}</Text>
         </View>
 
         <View style={styles.centerBlock}>
           <View style={[styles.progressRing, { borderColor: `${colors.primary}25` }]}>
-            <View style={[styles.progressRingInner, { borderColor: colors.primary }]}>
-              <Text style={[styles.progressText, { color: colors.foreground }]}>{progressLabel}</Text>
-              <Text style={[styles.progressCaption, { color: colors.muted }]}>rendering</Text>
+            <View style={[styles.progressRingInner, { borderColor: failedMessage ? colors.error : colors.primary }]}>
+              {failedMessage ? <IconSymbol name="exclamationmark.triangle.fill" size={34} color={colors.error} /> : <Text style={[styles.progressText, { color: colors.foreground }]}>{progressLabel}</Text>}
+              <Text style={[styles.progressCaption, { color: failedMessage ? colors.error : colors.muted }]}>{failedMessage ? "needs attention" : statusLabel}</Text>
             </View>
           </View>
-          <Text style={[styles.title, { color: colors.foreground }]}>Building your sync</Text>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>We are shaping the timing around your voice so it feels less mechanical.</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{failedMessage ? "Render needs attention" : "Building your sync"}</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>{failedMessage ? failedMessage : "SadTalker is animating your image from the reference audio. This can take about a minute."}</Text>
         </View>
 
-        <View style={styles.stageList}>
-          {stages.map((stage, index) => {
-            const isDone = progress >= (index + 1) * 25;
-            const isActive = index === stageIndex && progress < 100;
-            return (
-              <View key={stage.label} style={styles.stageRow}>
-                <View style={[styles.stageIcon, { backgroundColor: isDone ? colors.success : isActive ? `${colors.primary}18` : colors.surface, borderColor: isDone ? colors.success : isActive ? colors.primary : colors.border }]}>
-                  {isDone ? <IconSymbol name="chevron.right" size={14} color="#fff" /> : isActive ? <ActivityIndicator size="small" color={colors.primary} /> : <Text style={[styles.stageNumber, { color: colors.muted }]}>{index + 1}</Text>}
+        {!failedMessage ? (
+          <View style={styles.stageList}>
+            {stages.map((stage, index) => {
+              const isDone = progress >= (index + 1) * 25;
+              const isActive = index === stageIndex && progress < 100;
+              return (
+                <View key={stage.label} style={styles.stageRow}>
+                  <View style={[styles.stageIcon, { backgroundColor: isDone ? colors.success : isActive ? `${colors.primary}18` : colors.surface, borderColor: isDone ? colors.success : isActive ? colors.primary : colors.border }]}> 
+                    {isDone ? <IconSymbol name="checkmark" size={14} color="#fff" /> : isActive ? <ActivityIndicator size="small" color={colors.primary} /> : <Text style={[styles.stageNumber, { color: colors.muted }]}>{index + 1}</Text>}
+                  </View>
+                  <View style={styles.stageCopy}>
+                    <Text style={[styles.stageLabel, { color: isActive || isDone ? colors.foreground : colors.muted }]}>{stage.label}</Text>
+                    <Text style={[styles.stageDetail, { color: colors.muted }]}>{stage.detail}</Text>
+                  </View>
+                  {isDone ? <Text style={[styles.doneText, { color: colors.success }]}>Done</Text> : null}
                 </View>
-                <View style={styles.stageCopy}>
-                  <Text style={[styles.stageLabel, { color: isActive || isDone ? colors.foreground : colors.muted }]}>{stage.label}</Text>
-                  <Text style={[styles.stageDetail, { color: colors.muted }]}>{stage.detail}</Text>
-                </View>
-                {isDone ? <Text style={[styles.doneText, { color: colors.success }]}>Done</Text> : null}
-              </View>
-            );
-          })}
-        </View>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={[styles.errorCard, { backgroundColor: `${colors.error}10`, borderColor: `${colors.error}35` }]}>
+            <IconSymbol name="exclamationmark.triangle.fill" size={20} color={colors.error} />
+            <Text style={[styles.errorText, { color: colors.foreground }]}>Check the server configuration and try starting the sync again.</Text>
+          </View>
+        )}
 
-        <View style={[styles.metaCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <View style={[styles.metaCard, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
           <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>SOURCE</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{sourceLabel}</Text></View>
           <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>PROFILE</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.style ?? "Natural"} · {params.intensity ?? "Balanced"}</Text></View>
           <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>AUDIO</Text><Text style={[styles.metaValue, { color: colors.foreground }]} numberOfLines={1}>{params.audioName ?? "Voice track"}</Text></View>
-          <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>CLIP</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.trimStart ?? "0"}s – {params.trimEnd ?? "full"}s</Text></View>
+          <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>CLIP</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.trimStart ?? "0"} – {params.trimEnd ?? "1"}</Text></View>
         </View>
 
-        <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.cancelButton, pressed && { opacity: 0.6 }]}>
-          <Text style={[styles.cancelText, { color: colors.muted }]}>Keep this screen open</Text>
+        <Pressable onPress={handleCancel} disabled={canceling} style={({ pressed }) => [styles.cancelButton, pressed && { opacity: 0.6 }, canceling && { opacity: 0.5 }]}>
+          <Text style={[styles.cancelText, { color: colors.muted }]}>{canceling ? "Stopping render…" : failedMessage ? "Go back" : "Cancel render"}</Text>
         </Pressable>
       </View>
     </ScreenContainer>
@@ -116,6 +172,8 @@ const styles = StyleSheet.create({
   stageLabel: { fontSize: 14, fontWeight: "800" },
   stageDetail: { fontSize: 11 },
   doneText: { fontSize: 11, fontWeight: "800" },
+  errorCard: { marginTop: 32, borderRadius: 17, borderWidth: 1, padding: 16, flexDirection: "row", gap: 10, alignItems: "center" },
+  errorText: { flex: 1, fontSize: 13, lineHeight: 19, fontWeight: "700" },
   metaCard: { marginTop: "auto", borderRadius: 17, borderWidth: 1, padding: 14, gap: 9 },
   metaRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   metaKey: { width: 58, fontSize: 10, fontWeight: "800", letterSpacing: 1 },

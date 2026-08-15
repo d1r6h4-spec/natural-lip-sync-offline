@@ -27,6 +27,8 @@ const MAPPING = {
   "trash.fill": "delete",
   "video.fill": "videocam",
   "sparkles": "auto-awesome",
+  "exclamationmark.triangle.fill": "error",
+  "checkmark": "check",
 } as IconMapping;
 
 /**

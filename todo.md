@@ -24,3 +24,10 @@
 - [x] Memperbaiki penanganan sumber foto diam (image-to-lipsync) agar memunculkan indikator audio aktif atau animasi sinkronisasi di Result
 - [x] Memastikan audio referensi benar-benar diputar bersamaan dengan pratinjau gambar diam di layar Result
 - [x] Menjalankan pemeriksaan kompilasi TypeScript dan lint setelah perbaikan
+- [x] Menilai integrasi backend AI dan router Express untuk job lip-sync
+- [x] Membuat endpoint backend untuk mengunggah media dan menjalankan job render Wav2Lip / AI lipsync
+- [x] Menghubungkan layar Processing mobile dengan polling status job render backend
+- [ ] Memastikan hasil video render benar-benar diterima dan diputar di layar Result
+- [x] Menyimpan dokumentasi arsitektur integrasi AI backend
+- [x] Memvalidasi kredensial Replicate dan schema input SadTalker melalui test backend
+- [ ] Menjalankan satu inference live dengan foto dan audio nyata untuk memverifikasi output video end-to-end
