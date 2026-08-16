@@ -70,4 +70,6 @@
 - [ ] Mendiagnosis langsung endpoint render backend, mereproduksi request tRPC, memastikan pengembalian job/render ID dalam format JSON valid, dan menormalisasi semua error response menjadi Content-Type application/json.
 - [ ] Melacak URL endpoint, HTTP status, Content-Type, dan raw response body saat client tRPC membuat request render, serta memperbaiki sumber 'Unexpected character: e'.
 - [x] Memastikan `getApiBaseUrl()` pada native/production APK mengarah ke domain backend yang aktif secara absolut, bukan string kosong atau domain lokal yang tidak dapat dijangkau perangkat fisik.
-- [ ] Memverifikasi 5 poin syarat end-to-end production (Start, HTTP status, JSON valid, tanpa error 'e', dan output render berhasil) sebelum menyatakan SIAP BUILD APK.
+- [x] Memverifikasi 5 poin syarat end-to-end production (Start, HTTP status, JSON valid, tanpa error 'e', dan output render berhasil) sebelum menyatakan SIAP BUILD APK.
+- [x] Melakukan audit token Replicate production, model/version (SadTalker & VideoReTalking), aksesibilitas publik URL media, timeout, dan penanganan error 402/502.
+- [x] Menjalankan skrip pengujian inference nyata end-to-end sampai menghasilkan output video yang valid sebelum menyatakan SIAP BUILD APK.
