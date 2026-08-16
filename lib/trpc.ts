@@ -29,12 +29,36 @@ export function createTRPCClient() {
           const token = await Auth.getSessionToken();
           return token ? { Authorization: `Bearer ${token}` } : {};
         },
-        // Custom fetch to include credentials for cookie-based auth
-        fetch(url, options) {
-          return fetch(url, {
-            ...options,
-            credentials: "include",
-          });
+        // Custom fetch with robust debug logging for request URL, status, headers, and raw text to catch unexpected HTML/text
+        async fetch(url, options) {
+          const start = Date.now();
+          console.log(`[tRPC Fetch] Request -> URL: ${url}, Method: ${options?.method || "GET"}`);
+          try {
+            const res = await fetch(url, {
+              ...options,
+              credentials: "include",
+            });
+            const status = res.status;
+            const contentType = res.headers.get("content-type") || "unknown";
+            const text = await res.text();
+            console.log(`[tRPC Fetch] Response <- Status: ${status}, Type: ${contentType}, Duration: ${Date.now() - start}ms`);
+            console.log(`[tRPC Fetch] Raw Body (first 300 chars): ${text.substring(0, 300)}`);
+
+            // If response is not JSON or starts with HTML/error prefix causing unexpected character 'e', log warning
+            if (!contentType.includes("application/json") && !contentType.includes("text/json")) {
+              console.warn(`[tRPC Warning] Expected JSON content-type, got: ${contentType}`);
+            }
+
+            // Re-create response so downstream can still consume it normally
+            return new Response(text, {
+              status: res.status,
+              statusText: res.statusText,
+              headers: res.headers,
+            });
+          } catch (err) {
+            console.error(`[tRPC Fetch Error] Failed request to ${url}:`, err);
+            throw err;
+          }
         },
       }),
     ],
