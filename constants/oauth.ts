@@ -35,17 +35,25 @@ export function getApiBaseUrl(): string {
     return API_BASE_URL.replace(/\/$/, "");
   }
 
-  // On web, derive from current hostname by replacing port 8081 with 3000
+  // On web, derive from current hostname
   if (ReactNative.Platform.OS === "web" && typeof window !== "undefined" && window.location) {
-    const { protocol, hostname } = window.location;
-    // Pattern: 8081-sandboxid.region.domain -> 3000-sandboxid.region.domain
+    const { protocol, hostname, port } = window.location;
+    // Pattern 1: 8081-sandboxid.region.domain -> 3000-sandboxid.region.domain
     const apiHostname = hostname.replace(/^8081-/, "3000-");
     if (apiHostname !== hostname) {
       return `${protocol}//${apiHostname}`;
     }
+    // Pattern 2: Published web domain (e.g. natlipsync-*.manus.space or similar) where API runs on same domain with port 3000 or proxy
+    // If we are on a custom domain / deployed domain without port or on port 8081/80/443, check if API base is available or construct
+    if (port === "8081" || port === "19006" || port === "19000") {
+      return `${protocol}//${hostname.replace(/:\d+$/, "")}:3000`;
+    }
+    // If published app is served on a production domain where express serves both or reverse proxies /api
+    // If window.location.origin is available, use it as fallback so it hits /api/trpc directly instead of failing
+    return window.location.origin;
   }
 
-  // Fallback to empty (will use relative URL)
+  // Fallback
   return "";
 }
 

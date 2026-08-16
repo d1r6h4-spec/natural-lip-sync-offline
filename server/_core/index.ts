@@ -67,8 +67,24 @@ async function startServer() {
     createExpressMiddleware({
       router: appRouter,
       createContext,
+      onError({ error, path }) {
+        console.error(`[tRPC Error] path: ${path}`, error);
+      },
     }),
   );
+
+  // Fallback API error handler ensuring any unhandled API error returns JSON instead of HTML
+  app.use("/api", (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const status = err.status || err.statusCode || 500;
+    res.setHeader("Content-Type", "application/json");
+    res.status(status).json({
+      error: {
+        message: err.message || "Internal server error",
+        code: err.code || "INTERNAL_SERVER_ERROR",
+        path: req.path,
+      },
+    });
+  });
 
   const preferredPort = parseInt(process.env.PORT || "3000");
   const port = await findAvailablePort(preferredPort);
