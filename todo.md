@@ -87,3 +87,9 @@
 - [x] Membaca SYNC_API_KEY dari environment variables / secrets server backend
 - [x] Memverifikasi ekspor MediaStore ke album NaturalLipSync dan share sheet FileProvider
 - [ ] Build APK final versi 1.1.0 melalui Management UI → Publish → Android
+
+- [x] Menghapus sisa helper Motion Transfer / Replicate di server/lipsync.ts
+- [x] Memastikan endpoint Sync Labs menggunakan https://api.sync.so/v2/generate dan header x-api-key secara murni
+- [x] Menaikkan versi aplikasi menjadi 1.1.1 di app.config.ts dan package.json
+- [x] Menjalankan test suite, lint, dan esbuild backend
+- [ ] Menyimpan checkpoint stabil v1.1.1 dan menyiapkan instruksi build APK

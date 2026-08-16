@@ -106,14 +106,7 @@ export function buildSyncGenerationInput(input: z.infer<typeof renderInput>, sou
   };
 }
 
-export function buildMotionTransferInput(imageUrl: string, videoUrl: string, weight?: "Subtle" | "Balanced" | "Strong") {
-  return {
-    image: imageUrl,
-    video: videoUrl,
-    mode: weight === "Strong" ? "pro" : "std",
-    keep_original_sound: false,
-  };
-}
+
 
 async function probeMediaDuration(filePath: string): Promise<number> {
   try {
