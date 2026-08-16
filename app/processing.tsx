@@ -127,7 +127,7 @@ export default function ProcessingScreen() {
       <View style={styles.container}>
         <View style={styles.topRow}>
           <View style={[styles.brandMark, { backgroundColor: `${colors.primary}18` }]}><IconSymbol name="sparkles" size={20} color={colors.primary} /></View>
-          <Text style={[styles.topLabel, { color: colors.muted }]}>{hasMotionTransfer ? "MOTION CONTROL ENGINE" : params.sourceType === "video" ? "VIDEO RETALKING ENGINE" : "SADTALKER ENGINE"}</Text>
+          <Text style={[styles.topLabel, { color: colors.muted }]}>SYNC LABS ENGINE</Text>
           <View style={{ flex: 1 }} />
           <Text style={[styles.topLabel, { color: colors.muted }]}>{statusLabel.toUpperCase()}</Text>
         </View>
@@ -140,7 +140,7 @@ export default function ProcessingScreen() {
             </View>
           </View>
           <Text style={[styles.title, { color: colors.foreground }]}>{failedMessage ? providerCreditError ? "Provider credit required" : "Render needs attention" : "Building your sync"}</Text>
-          <Text style={[styles.subtitle, { color: colors.muted }]}>{failedMessage ? failedMessage : hasMotionTransfer ? "The AI is transferring full-body movement from your reference video, then preparing the selected audio track. This may take several minutes." : params.sourceType === "video" ? "The AI is preserving your video motion while matching the reference audio. This can take about a minute." : "SadTalker is animating your image from the reference audio. This can take about a minute."}</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>{failedMessage ? failedMessage : hasMotionTransfer ? "Sync Labs is transferring full-body movement from your reference video, then preparing the selected audio track. This may take several minutes." : params.sourceType === "video" ? "Sync Labs is preserving your video motion while matching the reference audio. This can take about a minute." : "Sync Labs is animating your image from the reference audio. This can take about a minute."}</Text>
         </View>
 
         <View style={styles.progressMeter}>
@@ -175,7 +175,7 @@ export default function ProcessingScreen() {
         ) : (
           <View style={[styles.errorCard, { backgroundColor: `${colors.error}10`, borderColor: `${colors.error}35` }]}>
             <IconSymbol name="exclamationmark.triangle.fill" size={20} color={colors.error} />
-            <Text style={[styles.errorText, { color: colors.foreground }]}>{providerCreditError ? "Add Replicate credits, then start the sync again. Your selected media and trim settings are still safe." : "Check the server configuration and try starting the sync again."}</Text>
+            <Text style={[styles.errorText, { color: colors.foreground }]}>{providerCreditError ? "Sync Labs rejected the request. Check the server API key and try again. Your selected media and trim settings are still safe." : "Check the Sync Labs server configuration and try starting the sync again."}</Text>
           </View>
         )}
 

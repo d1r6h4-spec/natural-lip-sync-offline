@@ -93,3 +93,13 @@
 - [x] Menaikkan versi aplikasi menjadi 1.1.1 di app.config.ts dan package.json
 - [x] Menjalankan test suite, lint, dan esbuild backend
 - [ ] Menyimpan checkpoint stabil v1.1.1 dan menyiapkan instruksi build APK
+
+- [x] Memperbarui SYNC_API_KEY single-line melalui webdev_request_secrets
+- [x] Memastikan backend server/_core/index.ts dan server/lipsync.ts selalu mengembalikan JSON valid pada error handling
+- [x] Menaikkan versi aplikasi menjadi 1.1.2 di app.config.ts dan package.json
+- [x] Melakukan restart backend server dan tes validasi end-to-end
+- [ ] Menyimpan checkpoint v1.1.2 dan menyiapkan instruksi build APK
+
+- [x] Membersihkan label UI dan skrip test lama agar runtime hanya menampilkan Sync Labs
+- [x] Menyinkronkan footer Settings dengan versi aplikasi 1.1.2
+- [x] Menjalankan validasi akhir v1.1.2 dan menyimpan checkpoint siap build Android

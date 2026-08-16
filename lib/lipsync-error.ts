@@ -1,5 +1,5 @@
 const PROVIDER_CREDIT_MESSAGE =
-  "The AI provider (Replicate) reports insufficient credit for running this lip-sync model. Please top up your Replicate credits or wait a few minutes after adding funds before trying again.";
+  "Sync Labs rejected the render request. Check the Sync Labs API key and account access, then try again.";
 
 export function errorMessage(error: unknown) {
   if (error instanceof Error) return error.message;

@@ -1,17 +1,14 @@
 # Video-to-Lipsync Fix Notes
 
-- **Payload Update**: Updated `buildSadTalkerInput` in `server/lipsync.ts` so that when `sourceType === 'video'`, the video URL is passed to `driven_video` instead of `source_image`.
-- **Media Preview**: `ResultScreen` handles video inputs (whether source video or AI-rendered `outputUrl`) through `expo-video` with loop playback.
-- **Audio Synchronization**: Preserves the reference audio track, trim range, and sync status for both image-to-lipsync and video-to-lipsync.
+- **Payload**: The backend sends the selected source video and reference audio to Sync Labs `sync-3` through `POST https://api.sync.so/v2/generate`.
+- **Media preview**: `ResultScreen` handles source videos and generated output through `expo-video` with loop playback.
+- **Audio synchronization**: The reference audio, selected trim range, and asynchronous job status are preserved for both image-to-lipsync and video-to-lipsync.
+- **Authentication**: Sync Labs is called server-side with `x-api-key: SYNC_API_KEY`; no provider credential is sent from the mobile client.
 
-## Provider Notes
+## Video trimming
 
-Wav2Lip menerima video dan audio sebagai input terpisah, tetapi dokumentasi model tidak menunjukkan parameter trim bawaan; pemotongan perlu dilakukan sebelum inference atau ditangani oleh provider lain [1]. Model Replicate VideoReTalking menerima `face` sebagai video talking-head dan `input_audio` sebagai file audio, sehingga lebih cocok untuk input video daripada SadTalker yang berfokus pada foto [2].
+The application keeps the selected video and audio trim values in the render input. Server preprocessing applies the selected ranges before the provider request when required, and the normalized result is polled until the output URL is available.
 
-[1]: https://github.com/Rudrabha/Wav2Lip/blob/master/README.md "Wav2Lip README"
-[2]: https://replicate.com/chenxwh/video-retalking "Replicate VideoReTalking"
+## Error handling
 
-
-## Video trimming provider note
-
-Pemeriksaan halaman API `chenxwh/video-retalking` menunjukkan model video lipsync menerima dua input utama: `face` berupa video talking-head dan `input_audio` berupa audio. Halaman API tidak menunjukkan parameter `start`/`end` untuk trimming. Karena itu, aplikasi menyimpan rentang video sebagai metadata dan meneruskannya ke job; penerapan trim fisik sebelum inference memerlukan tahap preprocessing video yang kompatibel (misalnya service ffmpeg/worker) atau provider yang secara eksplisit mendukung start/end.
+The provider response is read safely as text, parsed as JSON only when valid, and converted into the app's structured JSON error contract. This prevents the frontend from attempting to parse an HTML error page as JSON.

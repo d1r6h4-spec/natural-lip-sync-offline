@@ -73,6 +73,17 @@ async function startServer() {
     }),
   );
 
+  // Normal API 404 handler: never let a missing API route fall through to an HTML response.
+  app.use("/api", (req, res) => {
+    res.status(404).type("application/json").json({
+      error: {
+        message: "API route not found",
+        code: "NOT_FOUND",
+        path: req.path,
+      },
+    });
+  });
+
   // Fallback API error handler ensuring any unhandled API error returns JSON instead of HTML
   app.use("/api", (err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
     const status = err.status || err.statusCode || 500;
