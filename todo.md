@@ -73,3 +73,4 @@
 - [x] Memperbaiki pembacaan durasi asli audio dan menetapkan default selection full-duration, bukan 1 detik.
 - [x] Memastikan `trimStart` dan `trimEnd` dikirimkan secara konsisten ke backend dan digunakan penuh oleh FFmpeg preprocessing.
 - [x] Menguji durasi render dengan file audio nyata dan membuktikan durasi output sesuai pilihan pengguna sebelum membangun APK baru.
+- [ ] Menguji durasi audio asli >1 detik (misalnya nona manis.mp3) end-to-end sampai menghasilkan video dan memperbarui versi APK ke 1.0.5.
