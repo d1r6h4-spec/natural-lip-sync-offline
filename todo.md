@@ -98,7 +98,7 @@
 - [x] Memastikan backend server/_core/index.ts dan server/lipsync.ts selalu mengembalikan JSON valid pada error handling
 - [x] Menaikkan versi aplikasi menjadi 1.1.2 di app.config.ts dan package.json
 - [x] Melakukan restart backend server dan tes validasi end-to-end
-- [ ] Menyimpan checkpoint v1.1.2 dan menyiapkan instruksi build APK
+- [x] Menyimpan checkpoint v1.1.2 dan menyiapkan instruksi build APK
 
 - [x] Membersihkan label UI dan skrip test lama agar runtime hanya menampilkan Sync Labs
 - [x] Menyinkronkan footer Settings dengan versi aplikasi 1.1.2
