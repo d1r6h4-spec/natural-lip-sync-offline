@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { getProviderSettings, saveProviderSettings, type RenderProvider } from "@/lib/provider-settings";
 
 const SETTINGS_KEY = "natural-lipsync-settings";
 
@@ -12,12 +13,16 @@ type Settings = {
   quality: "720p" | "1080p";
   defaultStyle: "Natural" | "Expressive" | "Calm";
   autoSave: boolean;
+  provider: RenderProvider;
+  syncApiKey: string;
 };
 
 const defaultSettings: Settings = {
   quality: "1080p",
   defaultStyle: "Natural",
   autoSave: true,
+  provider: "replicate",
+  syncApiKey: "",
 };
 
 export default function SettingsScreen() {
@@ -25,20 +30,27 @@ export default function SettingsScreen() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
 
   useEffect(() => {
-    AsyncStorage.getItem(SETTINGS_KEY).then((stored) => {
-      if (!stored) return;
-      try {
-        setSettings({ ...defaultSettings, ...JSON.parse(stored) });
-      } catch {
-        setSettings(defaultSettings);
+    void Promise.all([
+      AsyncStorage.getItem(SETTINGS_KEY),
+      getProviderSettings(),
+    ]).then(([stored, providerSettings]) => {
+      let general = {};
+      if (stored) {
+        try {
+          general = JSON.parse(stored) as Record<string, unknown>;
+        } catch {
+          general = {};
+        }
       }
+      setSettings({ ...defaultSettings, ...general, ...providerSettings });
     });
   }, []);
 
   const updateSettings = (patch: Partial<Settings>) => {
     const next = { ...settings, ...patch };
     setSettings(next);
-    void AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(next));
+    void AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify({ quality: next.quality, defaultStyle: next.defaultStyle, autoSave: next.autoSave }));
+    void saveProviderSettings({ provider: next.provider, syncApiKey: next.syncApiKey });
   };
 
   const clearHistory = () => {
@@ -106,6 +118,38 @@ export default function SettingsScreen() {
           ))}
         </View>
 
+        <Text style={[styles.sectionTitle, { color: colors.muted }]}>RENDER SERVICE</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
+          <Text style={[styles.rowTitle, { color: colors.foreground }]}>AI provider</Text>
+          <View style={styles.segmented}>
+            {(["replicate", "sync"] as const).map((provider) => (
+              <Pressable
+                key={provider}
+                onPress={() => updateSettings({ provider })}
+                style={({ pressed }) => [
+                  styles.segment,
+                  { backgroundColor: settings.provider === provider ? colors.primary : "transparent" },
+                  pressed && { opacity: 0.72 },
+                ]}
+              >
+                <Text style={[styles.segmentText, { color: settings.provider === provider ? "#fff" : colors.muted }]}>{provider === "sync" ? "Sync Labs" : "Replicate"}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <Text style={[styles.helper, { color: colors.muted }]}>Sync Labs supports real image/video lip-sync renders through the production backend.</Text>
+          <TextInput
+            value={settings.syncApiKey}
+            onChangeText={(syncApiKey) => updateSettings({ syncApiKey })}
+            placeholder="Sync Labs API key"
+            placeholderTextColor={colors.muted}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={[styles.apiKeyInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+          />
+          <Text style={[styles.helper, { color: colors.muted }]}>The key is stored in SecureStore on Android and is sent only when Sync Labs is selected.</Text>
+        </View>
+
         <Text style={[styles.sectionTitle, { color: colors.muted }]}>STORAGE</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.optionRow}>
@@ -121,7 +165,7 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
-        <Text style={[styles.footer, { color: colors.muted }]}>Natural Lip-Sync · v1.0</Text>
+        <Text style={[styles.footer, { color: colors.muted }]}>Natural Lip-Sync · v1.1.0</Text>
       </ScrollView>
     </ScreenContainer>
   );
@@ -140,6 +184,7 @@ const styles = StyleSheet.create({
   segment: { flex: 1, borderRadius: 10, paddingVertical: 9, alignItems: "center" },
   segmentText: { fontSize: 13, fontWeight: "800" },
   helper: { fontSize: 12, lineHeight: 17 },
+  apiKeyInput: { borderWidth: 1, borderRadius: 12, minHeight: 46, paddingHorizontal: 12, fontSize: 14 },
   optionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 34 },
   optionText: { fontSize: 15, fontWeight: "600" },
   flexOne: { flex: 1, gap: 2 },

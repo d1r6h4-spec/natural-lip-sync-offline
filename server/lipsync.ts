@@ -12,10 +12,12 @@ import { ENV } from "./_core/env";
 import { storageCreateUploadUrl, storageGetSignedUrl, storagePut } from "./storage";
 
 const REPLICATE_API = "https://api.replicate.com/v1";
+const SYNC_API = "https://api.sync.so/v2";
 const SADTALKER_VERSION = ENV.replicateSadTalkerVersion;
 const VIDEO_RETALKING_VERSION = ENV.replicateVideoRetalkingVersion;
 const execFileAsync = promisify(execFile);
 const motionJobs = new Map<string, { audioUrl: string; processedUrl?: string; processing?: Promise<string> }>();
+const syncJobs = new Map<string, { apiKey: string }>();
 
 export const uploadInput = z.object({
   fileName: z.string().trim().min(1).max(160),
@@ -38,6 +40,8 @@ export const renderInput = z.object({
   videoTrimStart: z.number().min(0),
   videoTrimEnd: z.number().min(0),
   motionWeight: z.enum(["Subtle", "Balanced", "Strong"]).optional(),
+  provider: z.enum(["replicate", "sync"]).optional(),
+  syncApiKey: z.string().trim().min(10).max(300).optional(),
 }).superRefine((input, ctx) => {
   if (!input.sourceKey && !input.sourceUrl) ctx.addIssue({ code: "custom", path: ["sourceKey"], message: "A source image key or URL is required" });
   if (!input.audioKey && !input.audioUrl) ctx.addIssue({ code: "custom", path: ["audioKey"], message: "An audio key or URL is required" });
@@ -65,7 +69,7 @@ function absoluteStorageUrl(origin: string, key: string) {
 }
 
 async function replicateFetch(path: string, init?: RequestInit) {
-  if (!ENV.replicateApiToken || ENV.replicateApiToken.includes("placeholder") || ENV.replicateApiToken.length < 10 || ENV.replicateApiToken.startsWith("r8_") || process.env.FORCE_MOCK_RENDER === "true") {
+  if (!ENV.replicateApiToken || ENV.replicateApiToken.includes("placeholder") || ENV.replicateApiToken.length < 10 || process.env.FORCE_MOCK_RENDER === "true") {
     console.warn("⚠️ Replicate token bypassed or mock forced. Using mock fallback response.");
     return {
       ok: true,
@@ -105,6 +109,49 @@ async function replicateFetch(path: string, init?: RequestInit) {
     throw new TRPCError({ code, message: `Replicate request failed (${response.status}): ${details.slice(0, 500)}` });
   }
   return response;
+}
+
+async function syncFetch(path: string, apiKey: string, init?: RequestInit) {
+  const response = await fetch(`${SYNC_API}${path}`, {
+    ...init,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      ...(init?.headers ?? {}),
+    },
+  });
+
+  if (!response.ok) {
+    const details = await response.text().catch(() => response.statusText);
+    const code = response.status === 401 || response.status === 403 ? "UNAUTHORIZED" : response.status === 402 ? "PAYMENT_REQUIRED" : "BAD_GATEWAY";
+    throw new TRPCError({ code, message: `Sync Labs request failed (${response.status}): ${details.slice(0, 500)}` });
+  }
+  return response;
+}
+
+function normalizeSyncStatus(status: string): LipSyncStatus {
+  switch (status.toUpperCase()) {
+    case "COMPLETED": return "succeeded";
+    case "FAILED":
+    case "REJECTED": return "failed";
+    case "PROCESSING": return "processing";
+    case "PENDING": return "queued";
+    default: return "queued";
+  }
+}
+
+export function buildSyncGenerationInput(input: z.infer<typeof renderInput>, sourceUrl: string, audioUrl: string) {
+  return {
+    model: "sync-3",
+    input: [
+      { type: input.sourceType === "video" ? "video" : "image", url: sourceUrl },
+      { type: "audio", url: audioUrl },
+    ],
+    options: {
+      sync_mode: "cut_off",
+    },
+  };
 }
 
 function normalizeStatus(status: string): LipSyncStatus {
@@ -304,8 +351,33 @@ export async function createPrediction(input: z.infer<typeof renderInput>) {
   const motionUrl = input.motionUrl ?? (input.motionKey ? await storageGetSignedUrl(input.motionKey) : null);
   if (!sourceUrl || !audioUrl) throw new TRPCError({ code: "BAD_REQUEST", message: "Both source media and audio are required" });
 
-  // Selalu aktifkan mock yang stabil untuk pengujian end-to-end tanpa memerlukan kuota Replicate berbayar
-  if (process.env.FORCE_MOCK_RENDER === "true" || process.env.NODE_ENV === "test" || !ENV.replicateApiToken || ENV.replicateApiToken.startsWith("r8_") || ENV.replicateApiToken.includes("placeholder") || true) {
+  if (input.provider === "sync" || input.syncApiKey) {
+    if (!input.syncApiKey) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "A Sync Labs API key is required. Add it in Settings before rendering." });
+    }
+
+    const inferenceSourceUrl = input.sourceType === "video"
+      ? await prepareVideoForInference(sourceUrl, input.videoTrimStart, input.videoTrimEnd)
+      : sourceUrl;
+    const inferenceAudioUrl = await prepareAudioForInference(audioUrl, input.trimStart, input.trimEnd);
+    const response = await syncFetch("/generate", input.syncApiKey, {
+      method: "POST",
+      body: JSON.stringify(buildSyncGenerationInput(input, inferenceSourceUrl, inferenceAudioUrl)),
+    });
+    const data = (await response.json()) as { id?: string; status?: string; createdAt?: string; created_at?: string };
+    if (!data.id) throw new TRPCError({ code: "BAD_GATEWAY", message: "Sync Labs did not return a generation ID" });
+    syncJobs.set(data.id, { apiKey: input.syncApiKey });
+    return {
+      jobId: data.id,
+      status: normalizeSyncStatus(data.status ?? "PENDING"),
+      createdAt: data.createdAt ?? data.created_at ?? new Date().toISOString(),
+      trimStart: input.trimStart,
+      trimEnd: input.trimEnd,
+    };
+  }
+
+  // Mock is opt-in for tests or used when no Replicate credential exists. A real r8_ token is valid.
+  if (process.env.FORCE_MOCK_RENDER === "true" || process.env.NODE_ENV === "test" || !ENV.replicateApiToken || ENV.replicateApiToken.includes("placeholder")) {
     return {
       jobId: `mock-job-${Date.now()}`,
       status: "succeeded" as const,
@@ -368,6 +440,32 @@ export async function createPrediction(input: z.infer<typeof renderInput>) {
 }
 
 export async function getPrediction(jobId: string) {
+  const syncJob = syncJobs.get(jobId);
+  if (syncJob) {
+    const response = await syncFetch(`/generate/${encodeURIComponent(jobId)}`, syncJob.apiKey);
+    const data = (await response.json()) as {
+      id?: string;
+      status?: string;
+      outputUrl?: string | null;
+      outputDuration?: number | null;
+      error?: string | null;
+      errorCode?: string | null;
+    };
+    const status = normalizeSyncStatus(data.status ?? "PENDING");
+    if (status === "succeeded" || status === "failed" || status === "canceled") {
+      syncJobs.delete(jobId);
+    }
+    return {
+      jobId,
+      status,
+      progress: status === "succeeded" ? 1 : status === "processing" ? 0.56 : status === "queued" ? 0.12 : 0,
+      outputUrl: status === "succeeded" ? data.outputUrl ?? null : null,
+      error: data.error ?? data.errorCode ?? null,
+      logs: null,
+      duration: data.outputDuration ?? null,
+    };
+  }
+
   if (jobId.startsWith("mock-job-")) {
     return {
       jobId,
@@ -416,6 +514,12 @@ export async function getPrediction(jobId: string) {
 }
 
 export async function cancelPrediction(jobId: string) {
+  const syncJob = syncJobs.get(jobId);
+  if (syncJob) {
+    await syncFetch(`/generate/${encodeURIComponent(jobId)}/cancel`, syncJob.apiKey, { method: "POST" });
+    syncJobs.delete(jobId);
+    return { success: true };
+  }
   if (jobId.startsWith("mock-job-")) {
     return { success: true };
   }

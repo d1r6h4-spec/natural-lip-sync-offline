@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, Easing, Image, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { Alert, Animated, Easing, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { VideoView, useVideoPlayer } from "expo-video";
-import * as Sharing from "expo-sharing";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { saveVideoToGallery, shareVideo } from "@/lib/media-export";
 
 type Project = {
   id: string;
@@ -120,32 +120,35 @@ export default function ResultScreen() {
   }, [project]);
 
   const shareResult = async () => {
+    if (!hasVideo || !videoUri) {
+      Alert.alert("Video belum tersedia", "Tunggu sampai render selesai sebelum membagikan video.");
+      return;
+    }
+
     setSharing(true);
     try {
-      const shareAvailable = await Sharing.isAvailableAsync();
-      if (Platform.OS !== "web" && hasVideo && videoUri && shareAvailable) {
-        await Sharing.shareAsync(videoUri, {
-          dialogTitle: "Share your lip-sync",
-          mimeType: "video/mp4",
-          UTI: "public.movie",
-        });
-        return;
-      }
-      await Share.share({
-        message: hasVideo
-          ? `Natural Lip-Sync video · ${project.style} · ${project.audioName}`
-          : "Your lip-sync preview is ready. A rendered video file is needed before sharing to a social platform.",
-        title: "Natural Lip-Sync",
-      });
-    } catch {
-      Alert.alert("Sharing unavailable", "The share sheet could not be opened on this device.");
+      await shareVideo(videoUri);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The share sheet could not be opened on this device.";
+      Alert.alert("Sharing unavailable", message);
     } finally {
       setSharing(false);
     }
   };
 
-  const downloadResult = () => {
-    Alert.alert("Saved locally", "The project is saved in your Natural Lip-Sync history. Gallery export can be connected to a real render service next.");
+  const downloadResult = async () => {
+    if (!hasVideo || !videoUri) {
+      Alert.alert("Video belum tersedia", "Tunggu sampai render selesai sebelum menyimpan video.");
+      return;
+    }
+
+    try {
+      const result = await saveVideoToGallery(videoUri);
+      Alert.alert("Video tersimpan", `Video MP4 berhasil disimpan ke galeri sebagai ${result.fileName}.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Video could not be saved to the gallery.";
+      Alert.alert("Gallery export gagal", message);
+    }
   };
 
   return (
@@ -229,7 +232,7 @@ export default function ResultScreen() {
           <Text style={styles.primaryText}>{sharing ? "Opening share sheet…" : "Share video"}</Text>
         </Pressable>
         <View style={styles.actions}>
-          <Pressable onPress={downloadResult} style={({ pressed }) => [styles.shareButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.7 }]}><IconSymbol name="square.and.arrow.up" size={18} color={colors.foreground} /><Text style={[styles.shareText, { color: colors.foreground }]}>Save result</Text></Pressable>
+          <Pressable onPress={() => void downloadResult()} style={({ pressed }) => [styles.shareButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.7 }]}><IconSymbol name="square.and.arrow.up" size={18} color={colors.foreground} /><Text style={[styles.shareText, { color: colors.foreground }]}>Save to gallery</Text></Pressable>
           <Pressable onPress={shareResult} disabled={sharing} style={({ pressed }) => [styles.shareButton, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && { opacity: 0.7 }, sharing && { opacity: 0.55 }]}><IconSymbol name="paperplane.fill" size={18} color={colors.foreground} /><Text style={[styles.shareText, { color: colors.foreground }]}>More apps</Text></Pressable>
         </View>
         <Pressable onPress={() => router.replace("/create")} style={({ pressed }) => [styles.againButton, pressed && { opacity: 0.6 }]}><Text style={[styles.againText, { color: colors.primary }]}>Create another sync</Text><IconSymbol name="chevron.right" size={17} color={colors.primary} /></Pressable>

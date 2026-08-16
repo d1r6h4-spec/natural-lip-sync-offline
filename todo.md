@@ -74,3 +74,11 @@
 - [x] Memastikan `trimStart` dan `trimEnd` dikirimkan secara konsisten ke backend dan digunakan penuh oleh FFmpeg preprocessing.
 - [x] Menguji durasi render dengan file audio nyata dan membuktikan durasi output sesuai pilihan pengguna sebelum membangun APK baru.
 - [ ] Menguji durasi audio asli >1 detik (misalnya nona manis.mp3) end-to-end sampai menghasilkan video dan memperbarui versi APK ke 1.0.5.
+
+- [x] Implementasi ekspor galeri Android asli menggunakan MediaStore ke DCIM/NaturalLipSync
+- [x] Implementasi FileProvider dan share sheet Android asli menggunakan ACTION_SEND dan FLAG_GRANT_READ_URI_PERMISSION
+- [x] Integrasi provider render produksi (Sync.so / Fal.ai / Replicate lanjutan) di backend lipsync
+- [x] Penambahan input API Key yang aman di layar Settings dengan penyimpanan terenkripsi/AsyncStorage dan dukungan backend
+- [x] Permintaan izin WRITE_EXTERNAL_STORAGE dan READ_MEDIA_VIDEO saat aplikasi dibuka
+- [x] Menaikkan versi aplikasi menjadi 1.1.0 di app.config.ts dan package.json
+- [x] Pemeriksaan uji kompilasi TypeScript, lint, dan test serta penyimpanan checkpoint stabil v1.1.0
