@@ -34,7 +34,7 @@ type Project = {
 
 export default function ResultScreen() {
   const colors = useColors();
-  const params = useLocalSearchParams<{ sourceUri?: string; sourceType?: string; audioUri?: string; audioName?: string; outputUrl?: string; jobId?: string; style?: string; intensity?: string; trimStart?: string; trimEnd?: string; videoTrimStart?: string; videoTrimEnd?: string; motionUri?: string; motionName?: string; motionWeight?: string }>();
+  const params = useLocalSearchParams<{ sourceUri?: string; sourceType?: string; audioUri?: string; audioName?: string; outputUrl?: string; jobId?: string; style?: string; intensity?: string; trimStart?: string; trimEnd?: string; videoTrimStart?: string; videoTrimEnd?: string; motionUri?: string; motionName?: string; motionWeight?: string; audioDuration?: string }>();
   const [saved, setSaved] = useState(false);
   const [sharing, setSharing] = useState(false);
   const sourceUri = params.sourceUri ?? "";
@@ -193,7 +193,17 @@ export default function ResultScreen() {
           <View style={styles.detailRow}><Text style={[styles.detailKey, { color: colors.muted }]}>MOTION</Text><Text style={[styles.detailValue, { color: colors.foreground }]}>{project.style}</Text></View>
           <View style={styles.detailRow}><Text style={[styles.detailKey, { color: colors.muted }]}>INTENSITY</Text><Text style={[styles.detailValue, { color: colors.foreground }]}>{project.intensity}</Text></View>
           <View style={styles.detailRow}><Text style={[styles.detailKey, { color: colors.muted }]}>QUALITY</Text><Text style={[styles.detailValue, { color: colors.foreground }]}>1080p preview</Text></View>
-          <View style={styles.detailRow}><Text style={[styles.detailKey, { color: colors.muted }]}>AUDIO CLIP</Text><Text style={[styles.detailValue, { color: colors.foreground }]}>{project.trimStart}s – {project.trimEnd === "full" ? "full" : `${project.trimEnd}s`}</Text></View>
+          <View style={styles.detailRow}><Text style={[styles.detailKey, { color: colors.muted }]}>AUDIO CLIP</Text><Text style={[styles.detailValue, { color: colors.foreground }]}>{(() => {
+            const start = Number(project.trimStart ?? 0);
+            const end = Number(project.trimEnd ?? 1);
+            const dur = Number(params.audioDuration ?? 0);
+            if (dur > 0) {
+              const sSec = Math.round(start * dur);
+              const eSec = Math.round(end * dur);
+              return `${sSec}s – ${eSec}s (${Math.max(1, eSec - sSec)}s)`;
+            }
+            return `${Math.round(start * 100)}% – ${Math.round(end * 100)}%`;
+          })()}</Text></View>
           {project.sourceType === "video" ? <View style={styles.detailRow}><Text style={[styles.detailKey, { color: colors.muted }]}>VIDEO CLIP</Text><Text style={[styles.detailValue, { color: colors.foreground }]}>{project.videoTrimStart ?? "0"} – {project.videoTrimEnd ?? "full"}</Text></View> : null}
           {project.motionUri ? <View style={styles.detailRow}><Text style={[styles.detailKey, { color: colors.muted }]}>BODY MOTION</Text><Text style={[styles.detailValue, { color: colors.foreground }]}>{project.motionName ?? "Reference video"} · {project.motionWeight ?? "Balanced"}</Text></View> : null}
         </View>

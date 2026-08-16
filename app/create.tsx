@@ -308,22 +308,23 @@ export default function CreateScreen() {
 
       router.push({
         pathname: "/processing",
-        params: {
-          jobId: job.jobId,
-          sourceUri: media.uri,
-          sourceType: media.type,
-          audioUri: audio.uri,
-          audioName: audio.name,
-          motionUri: motionSource?.uri,
-          motionName: motionSource?.fileName,
-          style,
-          intensity,
-          trimStart: String(trimStart),
-          trimEnd: String(trimEnd),
-          videoTrimStart: String(videoTrimStart),
-          videoTrimEnd: String(videoTrimEnd),
-          motionWeight,
-        },
+          params: {
+            jobId: job.jobId,
+            sourceUri: media.uri,
+            sourceType: media.type,
+            audioUri: audio.uri,
+            audioName: audio.name,
+            motionUri: motionSource?.uri,
+            motionName: motionSource?.fileName,
+            style,
+            intensity,
+            trimStart: String(trimStart),
+            trimEnd: String(trimEnd),
+            videoTrimStart: String(videoTrimStart),
+            videoTrimEnd: String(videoTrimEnd),
+            motionWeight,
+            audioDuration: String(audioDuration),
+          },
       });
     } catch (error) {
       Alert.alert(

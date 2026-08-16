@@ -17,20 +17,21 @@ const stages = [
 ];
 
 type ProcessingParams = {
-  jobId?: string;
-  sourceUri?: string;
-  sourceType?: string;
-  audioUri?: string;
+  jobId: string;
+  sourceUri: string;
+  sourceType: string;
+  audioUri: string;
   audioName?: string;
+  motionUri?: string;
+  motionName?: string;
   style?: string;
   intensity?: string;
   trimStart?: string;
   trimEnd?: string;
   videoTrimStart?: string;
   videoTrimEnd?: string;
-  motionUri?: string;
-  motionName?: string;
   motionWeight?: string;
+  audioDuration?: string;
 };
 
 function first(value: string | string[] | undefined) {
@@ -182,7 +183,17 @@ export default function ProcessingScreen() {
           <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>SOURCE</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{sourceLabel}</Text></View>
           <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>PROFILE</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.style ?? "Natural"} · {params.intensity ?? "Balanced"}</Text></View>
           <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>AUDIO</Text><Text style={[styles.metaValue, { color: colors.foreground }]} numberOfLines={1}>{params.audioName ?? "Voice track"}</Text></View>
-          <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>AUDIO CLIP</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.trimStart ?? "0"} – {params.trimEnd ?? "1"}</Text></View>
+          <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>AUDIO CLIP</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{(() => {
+            const start = Number(params.trimStart ?? 0);
+            const end = Number(params.trimEnd ?? 1);
+            const dur = Number(params.audioDuration ?? 0);
+            if (dur > 0) {
+              const sSec = Math.round(start * dur);
+              const eSec = Math.round(end * dur);
+              return `${sSec}s – ${eSec}s (${Math.max(1, eSec - sSec)}s)`;
+            }
+            return `${Math.round(start * 100)}% – ${Math.round(end * 100)}%`;
+          })()}</Text></View>
           {params.sourceType === "video" ? <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>VIDEO CLIP</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.videoTrimStart ?? "0"} – {params.videoTrimEnd ?? "1"}</Text></View> : null}
           {hasMotionTransfer ? <View style={styles.metaRow}><Text style={[styles.metaKey, { color: colors.muted }]}>MOTION</Text><Text style={[styles.metaValue, { color: colors.foreground }]}>{params.motionName ?? "Reference video"} · {params.motionWeight ?? "Balanced"}</Text></View> : null}
         </View>
