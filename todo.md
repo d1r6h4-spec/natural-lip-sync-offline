@@ -66,3 +66,4 @@
 - [x] Menjalankan uji end-to-end motion transfer nyata dengan model `kwaivgi/kling-v2.6-motion-control`
 - [x] Menunggu hingga selesai dan mencatat output video atau error lengkap dari provider (Gagal pada tingkat provider: HTTP 402 Insufficient Credit)
 - [x] Memperbaiki penanganan response backend dan frontend agar endpoint render selalu mengembalikan JSON valid dan mencegah JSON Parse error dari response teks atau HTML.
+- [x] Menjalankan kembali tes Natural Lip-Sync menggunakan audio `nona manis.mp3` dan memverifikasi kelancaran endpoint tRPC render.
