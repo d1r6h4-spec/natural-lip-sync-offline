@@ -18,7 +18,7 @@ Fal.ai's `fal-ai/sync-lipsync` endpoint accepts video and audio URLs and returns
 
 ## Implementation decision
 
-Use Sync Labs as the primary optional provider because its official REST contract supports both image-to-lipsync with `sync-3` and video-to-lipsync with a single normalized create/status API. Keep the existing Replicate adapter as a backward-compatible fallback only when no Sync Labs key is configured. The mobile Settings screen stores the user's provider key locally with SecureStore on native and local storage on web; the key is sent only for the render request to the backend and is never persisted in the server database.
+Use Sync Labs as the only production provider because its official REST contract supports both image-to-lipsync with `sync-3` and video-to-lipsync with a single normalized create/status API. The backend reads `SYNC_API_KEY` exclusively from project secrets; the mobile client does not transmit or persist provider credentials.
 
 ## Expo media references
 

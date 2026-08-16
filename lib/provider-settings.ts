@@ -2,40 +2,31 @@ import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 
-export type RenderProvider = "replicate" | "sync";
+export type RenderProvider = "sync";
 
 const PROVIDER_KEY = "natural-lipsync-render-provider";
-const SYNC_API_KEY = "natural-lipsync-sync-api-key";
 
-export async function getProviderSettings(): Promise<{ provider: RenderProvider; syncApiKey: string }> {
-  const providerValue = Platform.OS === "web"
+export async function getProviderSettings(): Promise<{ provider: RenderProvider }> {
+  const storedProvider = Platform.OS === "web"
     ? await AsyncStorage.getItem(PROVIDER_KEY)
     : await SecureStore.getItemAsync(PROVIDER_KEY);
-  const apiKey = Platform.OS === "web"
-    ? await AsyncStorage.getItem(SYNC_API_KEY)
-    : await SecureStore.getItemAsync(SYNC_API_KEY);
 
-  return {
-    provider: providerValue === "sync" ? "sync" : "replicate",
-    syncApiKey: apiKey ?? "",
-  };
+  // Sync Labs is the only supported production provider in v1.1.0.
+  if (storedProvider !== "sync") {
+    if (Platform.OS === "web") {
+      await AsyncStorage.setItem(PROVIDER_KEY, "sync");
+    } else {
+      await SecureStore.setItemAsync(PROVIDER_KEY, "sync");
+    }
+  }
+
+  return { provider: "sync" };
 }
 
-export async function saveProviderSettings(settings: { provider: RenderProvider; syncApiKey: string }) {
+export async function saveProviderSettings() {
   if (Platform.OS === "web") {
-    await AsyncStorage.setItem(PROVIDER_KEY, settings.provider);
-    if (settings.syncApiKey.trim()) {
-      await AsyncStorage.setItem(SYNC_API_KEY, settings.syncApiKey.trim());
-    } else {
-      await AsyncStorage.removeItem(SYNC_API_KEY);
-    }
+    await AsyncStorage.setItem(PROVIDER_KEY, "sync");
     return;
   }
-
-  await SecureStore.setItemAsync(PROVIDER_KEY, settings.provider);
-  if (settings.syncApiKey.trim()) {
-    await SecureStore.setItemAsync(SYNC_API_KEY, settings.syncApiKey.trim());
-  } else {
-    await SecureStore.deleteItemAsync(SYNC_API_KEY);
-  }
+  await SecureStore.setItemAsync(PROVIDER_KEY, "sync");
 }

@@ -289,9 +289,6 @@ export default function CreateScreen() {
     setIsSubmitting(true);
     try {
       const providerSettings = await getProviderSettings();
-      if (providerSettings.provider === "sync" && !providerSettings.syncApiKey.trim()) {
-        throw new Error("Add a Sync Labs API key in Settings or switch the provider back to Replicate.");
-      }
       const sourceMedia = await uploadLocalMedia(media.uri, media.fileName ?? `face-source.${media.type === "image" ? "jpg" : "mp4"}`, media.type);
       const audioMedia = await uploadLocalMedia(audio.uri, audio.name || "voice-track.m4a", "audio");
       const motionMedia = motionSource
@@ -310,7 +307,6 @@ export default function CreateScreen() {
         videoTrimEnd,
         motionWeight,
         provider: providerSettings.provider,
-        ...(providerSettings.provider === "sync" ? { syncApiKey: providerSettings.syncApiKey } : {}),
       });
 
       router.push({

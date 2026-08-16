@@ -11,12 +11,8 @@ import { TRPCError } from "@trpc/server";
 import { ENV } from "./_core/env";
 import { storageCreateUploadUrl, storageGetSignedUrl, storagePut } from "./storage";
 
-const REPLICATE_API = "https://api.replicate.com/v1";
 const SYNC_API = "https://api.sync.so/v2";
-const SADTALKER_VERSION = ENV.replicateSadTalkerVersion;
-const VIDEO_RETALKING_VERSION = ENV.replicateVideoRetalkingVersion;
 const execFileAsync = promisify(execFile);
-const motionJobs = new Map<string, { audioUrl: string; processedUrl?: string; processing?: Promise<string> }>();
 const syncJobs = new Map<string, { apiKey: string }>();
 
 export const uploadInput = z.object({
@@ -40,8 +36,7 @@ export const renderInput = z.object({
   videoTrimStart: z.number().min(0),
   videoTrimEnd: z.number().min(0),
   motionWeight: z.enum(["Subtle", "Balanced", "Strong"]).optional(),
-  provider: z.enum(["replicate", "sync"]).optional(),
-  syncApiKey: z.string().trim().min(10).max(300).optional(),
+  provider: z.literal("sync").optional(),
 }).superRefine((input, ctx) => {
   if (!input.sourceKey && !input.sourceUrl) ctx.addIssue({ code: "custom", path: ["sourceKey"], message: "A source image key or URL is required" });
   if (!input.audioKey && !input.audioUrl) ctx.addIssue({ code: "custom", path: ["audioKey"], message: "An audio key or URL is required" });
@@ -66,49 +61,6 @@ function safeFileName(fileName: string) {
 
 function absoluteStorageUrl(origin: string, key: string) {
   return `${origin}/manus-storage/${key}`;
-}
-
-async function replicateFetch(path: string, init?: RequestInit) {
-  if (!ENV.replicateApiToken || ENV.replicateApiToken.includes("placeholder") || ENV.replicateApiToken.length < 10 || process.env.FORCE_MOCK_RENDER === "true") {
-    console.warn("⚠️ Replicate token bypassed or mock forced. Using mock fallback response.");
-    return {
-      ok: true,
-      json: async () => ({
-        id: `mock-job-${Date.now()}`,
-        status: "succeeded",
-        output: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-        created_at: new Date().toISOString()
-      })
-    } as any;
-  }
-
-  const response = await fetch(`${REPLICATE_API}${path}`, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${ENV.replicateApiToken}`,
-      Accept: "application/json",
-      ...(init?.headers ?? {}),
-    },
-  });
-
-  if (!response.ok) {
-    const details = await response.text().catch(() => response.statusText);
-    if (response.status === 402 || details.includes("Insufficient credit")) {
-      console.warn("⚠️ Replicate 402 Insufficient Credit detected. Returning mock response.");
-      return {
-        ok: true,
-        json: async () => ({
-          id: `mock-job-${Date.now()}`,
-          status: "succeeded",
-          output: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-          created_at: new Date().toISOString()
-        })
-      } as any;
-    }
-    const code = response.status === 401 || response.status === 403 ? "UNAUTHORIZED" : "BAD_GATEWAY";
-    throw new TRPCError({ code, message: `Replicate request failed (${response.status}): ${details.slice(0, 500)}` });
-  }
-  return response;
 }
 
 async function syncFetch(path: string, apiKey: string, init?: RequestInit) {
@@ -154,193 +106,98 @@ export function buildSyncGenerationInput(input: z.infer<typeof renderInput>, sou
   };
 }
 
-function normalizeStatus(status: string): LipSyncStatus {
-  if (status === "succeeded") return "succeeded";
-  if (status === "failed") return "failed";
-  if (status === "canceled") return "canceled";
-  if (status === "processing") return "processing";
-  return "queued";
-}
-
-function normalizeOutput(output: unknown) {
-  if (typeof output === "string") return output;
-  if (Array.isArray(output)) return output.find((value) => typeof value === "string") ?? null;
-  if (output && typeof output === "object" && "url" in output && typeof output.url === "string") return output.url;
-  return null;
-}
-
-function expressionScale(style: z.infer<typeof renderInput>["style"], intensity: z.infer<typeof renderInput>["intensity"]) {
-  const base = style === "Expressive" ? 1.25 : style === "Calm" ? 0.82 : 1;
-  const multiplier = intensity === "High" ? 1.18 : intensity === "Low" ? 0.86 : 1;
-  return Number((base * multiplier).toFixed(2));
-}
-
-export function buildSadTalkerInput(input: z.infer<typeof renderInput>, sourceUrl: string, audioUrl: string) {
+export function buildMotionTransferInput(imageUrl: string, videoUrl: string, weight?: "Subtle" | "Balanced" | "Strong") {
   return {
-    source_image: sourceUrl,
-    driven_audio: audioUrl,
-    use_enhancer: true,
-    pose_style: 0,
-    expression_scale: expressionScale(input.style, input.intensity),
-    use_eyeblink: true,
-    preprocess: "crop",
-    size_of_image: 256,
-    facerender: "facevid2vid",
-  };
-}
-
-export function buildVideoRetalkingInput(sourceUrl: string, audioUrl: string) {
-  return {
-    face: sourceUrl,
-    audio: audioUrl,
-    pads: "0 20 0 0",
-    face_det: "retinaface_mobile",
-  };
-}
-
-export function buildMotionTransferInput(sourceUrl: string, motionUrl: string, motionWeight?: string) {
-  return {
-    image: sourceUrl,
-    video: motionUrl,
-    mode: motionWeight === "Strong" ? "pro" : "std",
+    image: imageUrl,
+    video: videoUrl,
+    mode: weight === "Strong" ? "pro" : "std",
     keep_original_sound: false,
   };
 }
 
-async function probeDuration(filePath: string): Promise<number> {
+async function probeMediaDuration(filePath: string): Promise<number> {
   try {
-    const { stdout } = await execFileAsync(ffprobeStatic.path ?? "ffprobe", [
+    const { stdout } = await execFileAsync(ffprobeStatic.path, [
       "-v", "error",
       "-show_entries", "format=duration",
       "-of", "default=noprint_wrappers=1:nokey=1",
       filePath,
     ]);
-    const parsed = parseFloat(stdout.trim());
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : 5.0;
+    const duration = parseFloat(stdout.trim());
+    return isNaN(duration) ? 0 : duration;
   } catch {
-    return 5.0;
-  }
-}
-
-async function prepareAudioForInference(audioUrl: string, trimStart: number, trimEnd: number): Promise<string> {
-  const tmpDir = await mkdtemp(join(tmpdir(), "lipsync-audio-"));
-  try {
-    const audioRes = await fetch(audioUrl);
-    if (!audioRes.ok) throw new Error(`Failed to fetch audio from ${audioUrl}`);
-    const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
-    const inputPath = join(tmpDir, "input.mp3");
-    const outputPath = join(tmpDir, "trimmed.mp3");
-    await writeFile(inputPath, audioBuffer);
-
-    const originalDuration = await probeDuration(inputPath);
-    // Jika trimEnd adalah 1 atau tidak valid, gunakan durasi penuh asli audio
-    const effectiveStart = Math.max(0, trimStart);
-    const effectiveEnd = trimEnd > trimStart && trimEnd <= originalDuration ? trimEnd : originalDuration;
-    const duration = Math.max(0.5, effectiveEnd - effectiveStart);
-
-    await execFileAsync(ffmpegPath ?? "ffmpeg", [
-      "-y",
-      "-ss", String(effectiveStart),
-      "-i", inputPath,
-      "-t", String(duration),
-      "-acodec", "copy",
-      outputPath,
-    ]).catch(async () => {
-      // Fallback transcode jika copy gagal
-      await execFileAsync(ffmpegPath ?? "ffmpeg", [
-        "-y",
-        "-ss", String(effectiveStart),
-        "-i", inputPath,
-        "-t", String(duration),
-        "-acodec", "aac",
-        "-b:a", "192k",
-        outputPath,
-      ]);
-    });
-
-    const trimmedBuffer = await readFile(outputPath);
-    const remoteKey = `inference/audio-${Date.now()}.mp3`;
-    const resPut = await storagePut(remoteKey, trimmedBuffer, "audio/mpeg");
-    return resPut.url;
-  } finally {
-    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+    return 0;
   }
 }
 
 async function prepareVideoForInference(videoUrl: string, trimStart: number, trimEnd: number): Promise<string> {
   const tmpDir = await mkdtemp(join(tmpdir(), "lipsync-video-"));
   try {
-    const videoRes = await fetch(videoUrl);
-    if (!videoRes.ok) throw new Error(`Failed to fetch video from ${videoUrl}`);
-    const videoBuffer = Buffer.from(await videoRes.arrayBuffer());
     const inputPath = join(tmpDir, "input.mp4");
     const outputPath = join(tmpDir, "trimmed.mp4");
-    await writeFile(inputPath, videoBuffer);
 
-    const originalDuration = await probeDuration(inputPath);
-    const effectiveStart = Math.max(0, trimStart);
-    const effectiveEnd = trimEnd > trimStart && trimEnd <= originalDuration ? trimEnd : originalDuration;
-    const duration = Math.max(0.5, effectiveEnd - effectiveStart);
+    const res = await fetch(videoUrl);
+    if (!res.ok) throw new Error(`Failed to download source video: ${res.statusText}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    await writeFile(inputPath, buf);
 
-    await execFileAsync(ffmpegPath ?? "ffmpeg", [
-      "-y",
-      "-ss", String(effectiveStart),
-      "-i", inputPath,
-      "-t", String(duration),
-      "-c:v", "libx264",
-      "-c:a", "aac",
-      outputPath,
-    ]);
+    const originalDuration = await probeMediaDuration(inputPath);
+    const start = Math.max(0, trimStart);
+    const end = trimEnd > start ? Math.min(originalDuration || trimEnd, trimEnd) : originalDuration;
+    const duration = Math.max(0.5, end - start);
+
+    const ffmpegBinary = ffmpegPath;
+    if (!ffmpegBinary) throw new Error("FFmpeg binary is unavailable");
+    const args = ["-y", "-ss", start.toFixed(2), "-i", inputPath, "-t", duration.toFixed(2), "-c:v", "libx264", "-preset", "fast", "-crf", "22", "-c:a", "aac", outputPath];
+    await execFileAsync(ffmpegBinary, args);
 
     const trimmedBuffer = await readFile(outputPath);
-    const remoteKey = `inference/video-${Date.now()}.mp4`;
-    const resPut = await storagePut(remoteKey, trimmedBuffer, "video/mp4");
-    return resPut.url;
+    const key = `inference/video-${Date.now()}.mp4`;
+    const putRes = await storagePut(key, trimmedBuffer, "video/mp4");
+    return putRes.url;
   } finally {
     await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
-async function muxAudioIntoVideo(videoUrl: string, audioUrl: string): Promise<string> {
-  const tmpDir = await mkdtemp(join(tmpdir(), "mux-"));
+async function prepareAudioForInference(audioUrl: string, trimStart: number, trimEnd: number): Promise<string> {
+  const tmpDir = await mkdtemp(join(tmpdir(), "lipsync-audio-"));
   try {
-    const [vidRes, audRes] = await Promise.all([fetch(videoUrl), fetch(audioUrl)]);
-    const vidBuf = Buffer.from(await vidRes.arrayBuffer());
-    const audBuf = Buffer.from(await audRes.arrayBuffer());
+    const inputPath = join(tmpDir, "input.audio");
+    const outputPath = join(tmpDir, "trimmed.mp4");
 
-    const vidPath = join(tmpDir, "video.mp4");
-    const audPath = join(tmpDir, "audio.mp3");
-    const outPath = join(tmpDir, "output.mp4");
+    const res = await fetch(audioUrl);
+    if (!res.ok) throw new Error(`Failed to download audio track: ${res.statusText}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    await writeFile(inputPath, buf);
 
-    await Promise.all([writeFile(vidPath, vidBuf), writeFile(audPath, audBuf)]);
+    const originalDuration = await probeMediaDuration(inputPath);
+    const start = Math.max(0, trimStart);
+    const end = trimEnd > start ? Math.min(originalDuration || trimEnd, trimEnd) : originalDuration;
+    const duration = Math.max(0.5, end - start);
 
-    await execFileAsync(ffmpegPath ?? "ffmpeg", [
-      "-y",
-      "-i", vidPath,
-      "-i", audPath,
-      "-c:v", "copy",
-      "-c:a", "aac",
-      "-shortest",
-      outPath,
-    ]);
+    const ffmpegBinary = ffmpegPath;
+    if (!ffmpegBinary) throw new Error("FFmpeg binary is unavailable");
+    const args = ["-y", "-ss", start.toFixed(2), "-i", inputPath, "-t", duration.toFixed(2), "-c:a", "aac", "-b:a", "192k", outputPath];
+    await execFileAsync(ffmpegBinary, args);
 
-    const finalBuf = await readFile(outPath);
-    const remoteKey = `inference/muxed-${Date.now()}.mp4`;
-    const resPut = await storagePut(remoteKey, finalBuf, "video/mp4");
-    return resPut.url;
+    const trimmedBuffer = await readFile(outputPath);
+    const key = `inference/audio-${Date.now()}.mp4`;
+    const putRes = await storagePut(key, trimmedBuffer, "audio/mp4");
+    return putRes.url;
   } finally {
     await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
-export async function prepareUpload(req: Parameters<typeof getOrigin>[0], input: z.infer<typeof uploadInput>) {
+export async function prepareUpload(req: any, input: z.infer<typeof uploadInput>) {
   const origin = getOrigin(req);
-  const key = `lipsync-inputs/${Date.now()}-${safeFileName(input.fileName)}`;
-  const { key: storedKey, uploadUrl } = await storageCreateUploadUrl(key, input.contentType);
+  const storedKey = `uploads/${Date.now()}-${safeFileName(input.fileName)}`;
+  const upload = await storageCreateUploadUrl(storedKey);
   return {
-    key: storedKey,
-    uploadUrl,
-    fileUrl: absoluteStorageUrl(origin, storedKey),
+    key: upload.key,
+    uploadUrl: upload.uploadUrl,
+    fileUrl: absoluteStorageUrl(origin, upload.key),
     mediaType: input.mediaType,
   };
 }
@@ -348,92 +205,34 @@ export async function prepareUpload(req: Parameters<typeof getOrigin>[0], input:
 export async function createPrediction(input: z.infer<typeof renderInput>) {
   const sourceUrl = input.sourceUrl ?? (input.sourceKey ? await storageGetSignedUrl(input.sourceKey) : null);
   const audioUrl = input.audioUrl ?? (input.audioKey ? await storageGetSignedUrl(input.audioKey) : null);
-  const motionUrl = input.motionUrl ?? (input.motionKey ? await storageGetSignedUrl(input.motionKey) : null);
   if (!sourceUrl || !audioUrl) throw new TRPCError({ code: "BAD_REQUEST", message: "Both source media and audio are required" });
 
-  if (input.provider === "sync" || input.syncApiKey) {
-    if (!input.syncApiKey) {
-      throw new TRPCError({ code: "BAD_REQUEST", message: "A Sync Labs API key is required. Add it in Settings before rendering." });
-    }
-
-    const inferenceSourceUrl = input.sourceType === "video"
-      ? await prepareVideoForInference(sourceUrl, input.videoTrimStart, input.videoTrimEnd)
-      : sourceUrl;
-    const inferenceAudioUrl = await prepareAudioForInference(audioUrl, input.trimStart, input.trimEnd);
-    const response = await syncFetch("/generate", input.syncApiKey, {
-      method: "POST",
-      body: JSON.stringify(buildSyncGenerationInput(input, inferenceSourceUrl, inferenceAudioUrl)),
+  const activeSyncApiKey = ENV.syncApiKey;
+  if (!activeSyncApiKey || activeSyncApiKey.length < 10) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "SYNC_API_KEY is not configured in the server secrets.",
     });
-    const data = (await response.json()) as { id?: string; status?: string; createdAt?: string; created_at?: string };
-    if (!data.id) throw new TRPCError({ code: "BAD_GATEWAY", message: "Sync Labs did not return a generation ID" });
-    syncJobs.set(data.id, { apiKey: input.syncApiKey });
-    return {
-      jobId: data.id,
-      status: normalizeSyncStatus(data.status ?? "PENDING"),
-      createdAt: data.createdAt ?? data.created_at ?? new Date().toISOString(),
-      trimStart: input.trimStart,
-      trimEnd: input.trimEnd,
-    };
-  }
-
-  // Mock is opt-in for tests or used when no Replicate credential exists. A real r8_ token is valid.
-  if (process.env.FORCE_MOCK_RENDER === "true" || process.env.NODE_ENV === "test" || !ENV.replicateApiToken || ENV.replicateApiToken.includes("placeholder")) {
-    return {
-      jobId: `mock-job-${Date.now()}`,
-      status: "succeeded" as const,
-      createdAt: new Date().toISOString(),
-      trimStart: input.trimStart,
-      trimEnd: input.trimEnd,
-    };
   }
 
   const inferenceSourceUrl = input.sourceType === "video"
-    ? await prepareVideoForInference(sourceUrl!, input.videoTrimStart, input.videoTrimEnd)
-    : sourceUrl!;
-  const inferenceAudioUrl = await prepareAudioForInference(audioUrl!, input.trimStart, input.trimEnd);
-  const isVideoSource = input.sourceType === "video";
-  const isMotionTransfer = Boolean(motionUrl);
+    ? await prepareVideoForInference(sourceUrl, input.videoTrimStart, input.videoTrimEnd)
+    : sourceUrl;
+  const inferenceAudioUrl = await prepareAudioForInference(audioUrl, input.trimStart, input.trimEnd);
 
-  let response: any;
-  try {
-    response = await replicateFetch(
-      isMotionTransfer
-        ? `/models/${ENV.replicateMotionTransferModel}/predictions`
-        : "/predictions",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          isMotionTransfer
-            ? { input: buildMotionTransferInput(inferenceSourceUrl, motionUrl ?? "", input.motionWeight) }
-            : isVideoSource
-              ? {
-                  version: VIDEO_RETALKING_VERSION,
-                  input: buildVideoRetalkingInput(inferenceSourceUrl!, inferenceAudioUrl!),
-                }
-              : {
-                  version: SADTALKER_VERSION,
-                  input: buildSadTalkerInput(input, inferenceSourceUrl!, inferenceAudioUrl!),
-                },
-        ),
-      },
-    );
-  } catch (err: any) {
-    console.warn("⚠️ Replicate execution failed or insufficient credit, activating robust mock fallback:", err?.message);
-    return {
-      jobId: `mock-job-${Date.now()}`,
-      status: "succeeded" as const,
-      createdAt: new Date().toISOString(),
-      trimStart: input.trimStart,
-      trimEnd: input.trimEnd,
-    };
-  }
-  const data = (await response.json()) as { id: string; status: string; created_at?: string };
-  if (isMotionTransfer) motionJobs.set(data.id, { audioUrl: inferenceAudioUrl });
+  const response = await syncFetch("/generate", activeSyncApiKey, {
+    method: "POST",
+    body: JSON.stringify(buildSyncGenerationInput(input, inferenceSourceUrl, inferenceAudioUrl)),
+  });
+
+  const data = (await response.json()) as { id?: string; status?: string; createdAt?: string; created_at?: string };
+  if (!data.id) throw new TRPCError({ code: "BAD_GATEWAY", message: "Sync Labs did not return a generation ID" });
+
+  syncJobs.set(data.id, { apiKey: activeSyncApiKey });
   return {
     jobId: data.id,
-    status: normalizeStatus(data.status),
-    createdAt: data.created_at ?? null,
+    status: normalizeSyncStatus(data.status ?? "PENDING"),
+    createdAt: data.createdAt ?? data.created_at ?? new Date().toISOString(),
     trimStart: input.trimStart,
     trimEnd: input.trimEnd,
   };
@@ -466,51 +265,7 @@ export async function getPrediction(jobId: string) {
     };
   }
 
-  if (jobId.startsWith("mock-job-")) {
-    return {
-      jobId,
-      status: "succeeded" as const,
-      progress: 1,
-      outputUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-      error: null,
-      logs: "Mock fallback render completed successfully.",
-      duration: 15.5,
-    };
-  }
-  const response = await replicateFetch(`/predictions/${encodeURIComponent(jobId)}`);
-  const data = (await response.json()) as {
-    id: string;
-    status: string;
-    output?: unknown;
-    error?: string | null;
-    logs?: string | null;
-    metrics?: { predict_time?: number };
-  };
-  const status = normalizeStatus(data.status);
-  const rawOutputUrl = status === "succeeded" ? normalizeOutput(data.output) : null;
-  const motionJob = motionJobs.get(data.id);
-  let outputUrl = rawOutputUrl;
-  if (status === "succeeded" && rawOutputUrl && motionJob) {
-    if (!motionJob.processedUrl) {
-      motionJob.processing ??= muxAudioIntoVideo(rawOutputUrl, motionJob.audioUrl).then((url) => {
-        motionJob.processedUrl = url;
-        return url;
-      });
-      outputUrl = await motionJob.processing;
-    } else {
-      outputUrl = motionJob.processedUrl;
-    }
-    motionJobs.delete(data.id);
-  }
-  return {
-    jobId: data.id,
-    status,
-    progress: status === "succeeded" ? 1 : status === "processing" ? 0.56 : status === "queued" ? 0.12 : 0,
-    outputUrl,
-    error: data.error ?? null,
-    logs: data.logs ?? null,
-    duration: data.metrics?.predict_time ?? null,
-  };
+  throw new TRPCError({ code: "NOT_FOUND", message: `Job ${jobId} not found in Sync Labs session storage` });
 }
 
 export async function cancelPrediction(jobId: string) {
@@ -520,9 +275,5 @@ export async function cancelPrediction(jobId: string) {
     syncJobs.delete(jobId);
     return { success: true };
   }
-  if (jobId.startsWith("mock-job-")) {
-    return { success: true };
-  }
-  await replicateFetch(`/predictions/${encodeURIComponent(jobId)}/cancel`, { method: "POST" });
   return { success: true };
 }

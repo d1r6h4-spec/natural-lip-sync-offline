@@ -77,8 +77,13 @@
 
 - [x] Implementasi ekspor galeri Android asli menggunakan MediaStore ke DCIM/NaturalLipSync
 - [x] Implementasi FileProvider dan share sheet Android asli menggunakan ACTION_SEND dan FLAG_GRANT_READ_URI_PERMISSION
-- [x] Integrasi provider render produksi (Sync.so / Fal.ai / Replicate lanjutan) di backend lipsync
-- [x] Penambahan input API Key yang aman di layar Settings dengan penyimpanan terenkripsi/AsyncStorage dan dukungan backend
+- [x] Integrasi provider render produksi Sync Labs `sync-3` di backend lipsync
+- [x] Penambahan status Sync Labs di Settings; kredensial backend memakai `SYNC_API_KEY` dari secrets dan tidak dikirim dari client
 - [x] Permintaan izin WRITE_EXTERNAL_STORAGE dan READ_MEDIA_VIDEO saat aplikasi dibuka
 - [x] Menaikkan versi aplikasi menjadi 1.1.0 di app.config.ts dan package.json
 - [x] Pemeriksaan uji kompilasi TypeScript, lint, dan test serta penyimpanan checkpoint stabil v1.1.0
+
+- [x] Menghapus Replicate dari backend dan mengonfigurasi Sync Labs sync-3 sebagai satu-satunya penyedia render
+- [x] Membaca SYNC_API_KEY dari environment variables / secrets server backend
+- [x] Memverifikasi ekspor MediaStore ke album NaturalLipSync dan share sheet FileProvider
+- [ ] Build APK final versi 1.1.0 melalui Management UI → Publish → Android

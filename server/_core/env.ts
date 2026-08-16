@@ -7,12 +7,5 @@ export const ENV = {
   isProduction: process.env.NODE_ENV === "production",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
-  replicateApiToken: process.env.REPLICATE_API_TOKEN ?? "",
-  replicateSadTalkerVersion:
-    process.env.REPLICATE_SADTALKER_VERSION ??
-    "a519cc0cfebaaeade068b23899165a11ec76aaa1d2b313d40d214f204ec957a3",
-  replicateVideoRetalkingVersion:
-    process.env.REPLICATE_VIDEO_RETALKING_VERSION ??
-    "db5a650c807b007dc5f9e5abe27c53e1b62880d1f94d218d27ce7fa802711d67",
-  replicateMotionTransferModel: "kwaivgi/kling-v2.6-motion-control",
+  syncApiKey: process.env.SYNC_API_KEY ?? "",
 };
