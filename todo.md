@@ -103,3 +103,7 @@
 - [x] Membersihkan label UI dan skrip test lama agar runtime hanya menampilkan Sync Labs
 - [x] Menyinkronkan footer Settings dengan versi aplikasi 1.1.2
 - [x] Menjalankan validasi akhir v1.1.2 dan menyimpan checkpoint siap build Android
+
+- [x] Memverifikasi konfigurasi SYNC_API_KEY baru secara server-side tanpa mengekspos nilainya
+- [x] Menaikkan versi aplikasi menjadi 1.1.3 di app.config.ts, package.json, dan footer Settings
+- [x] Menjalankan validasi akhir v1.1.3 dan menyimpan checkpoint siap Android APK build
