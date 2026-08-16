@@ -53,8 +53,8 @@ export function getApiBaseUrl(): string {
     return window.location.origin;
   }
 
-  // Fallback
-  return "";
+  // Fallback for native/production or when API_BASE_URL is not explicitly provided
+  return "https://natlipsync-6gf2ddhv.manus.space";
 }
 
 export const SESSION_TOKEN_KEY = "app_session_token";

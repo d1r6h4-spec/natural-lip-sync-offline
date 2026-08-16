@@ -69,3 +69,4 @@
 - [x] Menjalankan kembali tes Natural Lip-Sync menggunakan audio `nona manis.mp3` dan memverifikasi kelancaran endpoint tRPC render.
 - [ ] Mendiagnosis langsung endpoint render backend, mereproduksi request tRPC, memastikan pengembalian job/render ID dalam format JSON valid, dan menormalisasi semua error response menjadi Content-Type application/json.
 - [ ] Melacak URL endpoint, HTTP status, Content-Type, dan raw response body saat client tRPC membuat request render, serta memperbaiki sumber 'Unexpected character: e'.
+- [x] Memastikan `getApiBaseUrl()` pada native/production APK mengarah ke domain backend yang aktif secara absolut, bukan string kosong atau domain lokal yang tidak dapat dijangkau perangkat fisik.
