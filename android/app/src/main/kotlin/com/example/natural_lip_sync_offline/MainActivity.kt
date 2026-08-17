@@ -6,6 +6,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.File
 
@@ -23,7 +24,7 @@ class MainActivity : FlutterActivity() {
             }
     }
 
-    private fun copyToDownload(call: MethodChannel.MethodCall, result: MethodChannel.Result) {
+    private fun copyToDownload(call: MethodCall, result: MethodChannel.Result) {
         val sourcePath = call.argument<String>("sourcePath")
         val displayName = call.argument<String>("displayName") ?: "natural_lipsync_video.mp4"
         if (sourcePath.isNullOrBlank()) {
