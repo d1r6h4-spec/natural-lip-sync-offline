@@ -242,3 +242,8 @@
 - [x] Fix #11 follow-up: Identifikasi akar build failure pada AAR FFmpeg 2.0.0, bukan embedding v2
 - [x] Fix #11 follow-up: Upgrade `ffmpeg_kit_flutter_new` ke 4.6.2 dan menghapus `ffmpeg_kit_flutter_android` 1.7.0 dari dependency tree
 - [x] Fix #11 follow-up: Verifikasi GitHub Actions build APK hijau setelah upgrade FFmpeg
+
+- [x] Build #12: Identifikasi run GitHub Actions dan artifact APK yang sukses
+- [x] Build #12: Mengambil dan memvalidasi APK untuk distribusi publik
+- [x] Build #12: Membuat GitHub Release publik `v1.0.0-build12` dengan APK terlampir
+- [x] Build #12: Memverifikasi URL unduhan langsung release
