@@ -17,6 +17,8 @@ describe("FREE Offline Edition architecture", () => {
       "app/(tabs)/index.tsx",
       "app/(tabs)/settings.tsx",
       "lib/offline-renderer.ts",
+      "lib/offline-renderer.native.ts",
+      "lib/offline-renderer.web.ts",
       "server/_core/env.ts",
       "server/routers.ts",
     ];
@@ -33,7 +35,7 @@ describe("FREE Offline Edition architecture", () => {
   });
 
   it("uses local ML Kit face detection and FFmpeg rendering without network calls", () => {
-    const renderer = read("lib/offline-renderer.ts");
+    const renderer = read("lib/offline-renderer.native.ts");
     expect(renderer).toContain("@infinitered/react-native-mlkit-face-detection");
     expect(renderer).toContain("ffmpeg-kit-react-native");
     expect(renderer).toContain('engine: "offline-local-engine"');

@@ -85,6 +85,9 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    "expo-asset",
+    "expo-font",
+    "expo-web-browser",
     "onnxruntime-react-native",
     [
       "expo-audio",

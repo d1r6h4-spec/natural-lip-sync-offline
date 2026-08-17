@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { setAudioModeAsync } from "expo-audio";
@@ -48,10 +48,16 @@ function stageIndexFor(stage: OfflineRenderProgress["stage"]) {
 export default function ProcessingScreen() {
   const colors = useColors();
   const rawParams = useLocalSearchParams<ProcessingParams>();
-  const params = useMemo(
-    () => Object.fromEntries(Object.entries(rawParams).map(([key, value]) => [key, first(value)])) as ProcessingParams,
-    [rawParams],
-  );
+  // Expo Router can return a new params object after each state update. Keep one
+  // normalized snapshot for this render job so the effect cannot restart or
+  // repeatedly clean up while progress updates are being reported.
+  const paramsRef = useRef<ProcessingParams | null>(null);
+  if (!paramsRef.current) {
+    paramsRef.current = Object.fromEntries(
+      Object.entries(rawParams).map(([key, value]) => [key, first(value)]),
+    ) as ProcessingParams;
+  }
+  const params = paramsRef.current;
   const started = useRef(false);
   const [progress, setProgress] = useState(0.02);
   const [activeStage, setActiveStage] = useState<OfflineRenderProgress["stage"]>("audio");

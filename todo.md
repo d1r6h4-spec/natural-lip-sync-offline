@@ -134,3 +134,21 @@
 - [ ] Mencoba unduh dari GitHub Release dan camenduru Hugging Face; menyiapkan fallback build-safe bila keduanya gagal agar APK v2.0 tetap dapat dibuild tanpa upload manual
 
 - [x] Migrasi ke Natural Lip-Sync v2.0 FREE OFFLINE EDITION (menghapus Sync Labs total, indikator OFFLINE READY hijau, zero network call, fallback build-safe tanpa model besar untuk menghindari HTTP 413, versi 2.0.0)
+
+- [x] Audit preview/build failure pada 1% dan log runtime
+- [x] Periksa infinite loop, import/dependency hilang, dan Metro/Expo asset resolver
+- [x] Bersihkan cache/artifact build dan lakukan rebuild dari scratch
+- [x] Verifikasi preview serta test/check/lint/build setelah perbaikan
+
+- [x] Menstabilkan dependency effect Processing screen agar tidak memicu render ulang berulang
+- [x] Menyelaraskan versi Expo package yang tidak kompatibel jika diperlukan
+- [x] Membersihkan cache Metro/Expo dan artifact build dengan aman
+- [x] Memverifikasi preview web setelah clean rebuild
+
+- [x] Membatalkan proses preview/dependency yang stuck dan merekam error log sebenarnya
+- [x] Memeriksa infinite loop, missing dependency, dependency mismatch, dan cache rusak
+- [x] Membersihkan cache/artifact serta memulihkan dependency tanpa mengubah fitur
+- [x] Menjalankan preview/build bersih sampai melewati 1% dan memvalidasi E2E utama
+- [x] Tidak membuat APK baru sebelum preview dan E2E berhasil
+
+- [x] Menstabilkan react-native-css-interop web.css cache dan Metro watchFolders agar clean preview tidak gagal SHA-1
