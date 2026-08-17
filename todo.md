@@ -173,3 +173,7 @@
 - [x] Membuat .github/workflows/build-apk.yml sesuai workflow build APK
 - [x] Commit project ke branch main dan push ke repository GitHub target
 - [x] Memverifikasi remote, branch, dan workflow setelah push
+
+- [x] Memeriksa workflow GitHub dan lockfile yang tersedia
+- [x] Menghapus cache npm yang membutuhkan package-lock.json
+- [x] Commit, push, dan verifikasi workflow GitHub terbaru
