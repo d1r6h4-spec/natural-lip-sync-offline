@@ -238,3 +238,7 @@
 - [x] Fix #11: Validasi MainActivity, AndroidManifest, namespace/applicationId, dan dependency ffmpeg
 - [x] Fix #11: Jalankan clean dependency checks/build validation tanpa mengubah fitur offline
 - [ ] Fix #11: Commit dan push regenerasi Android ke branch main GitHub
+
+- [x] Fix #11 follow-up: Identifikasi akar build failure pada AAR FFmpeg 2.0.0, bukan embedding v2
+- [x] Fix #11 follow-up: Upgrade `ffmpeg_kit_flutter_new` ke 4.6.2 dan menghapus `ffmpeg_kit_flutter_android` 1.7.0 dari dependency tree
+- [ ] Fix #11 follow-up: Verifikasi GitHub Actions build APK hijau setelah upgrade FFmpeg
