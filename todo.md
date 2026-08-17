@@ -192,6 +192,12 @@
 - [x] Memastikan mavenCentral() dan repositories Maven terkonfigurasi benar
 - [x] Commit dan push perbaikan resolutionStrategy FFmpeg ke branch main GitHub
 
+- [x] Mengaudit package.json dan file build untuk memastikan ini project React Native/Expo
+- [x] Membersihkan blok resolutionStrategy lama yang tidak efektif
+- [x] Memastikan modul ffmpeg-kit-react-native menggunakan dev.ffmpegkit-maintained
+- [x] Commit dan push Build #7 fix ke branch main GitHub
+
+
 - [x] Mengaudit konfigurasi Gradle root dan app module untuk resolusi FFmpeg
 - [x] Menerapkan resolutionStrategy pada subprojects/allprojects di android/build.gradle
 - [x] Menambahkan resolutionStrategy di android/app/build.gradle
