@@ -163,3 +163,7 @@
 - [x] Memastikan Expo web export menghasilkan dist/index.html untuk hosting
 - [x] Mengubah hosting production agar menyajikan dist secara static dengan SPA fallback
 - [x] Memvalidasi root domain tidak lagi mengembalikan Cannot GET / dan menyimpan checkpoint hosting
+
+- [x] Memeriksa kegagalan startup terbaru dan status dev server
+- [x] Menyelaraskan konfigurasi start hosting dengan static Expo dist
+- [x] Memvalidasi restart dev server dan root preview setelah perbaikan
