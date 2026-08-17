@@ -159,3 +159,7 @@
 - [x] Memperbaiki hanya akar masalah build dengan perubahan minimal
 - [x] Menjalankan clean Android build sampai selesai tanpa mengubah fitur offline dan alur Natural Lip-Sync
 - [x] Menyimpan checkpoint perbaikan build Android dan melaporkan hasilnya
+
+- [x] Memastikan Expo web export menghasilkan dist/index.html untuk hosting
+- [x] Mengubah hosting production agar menyajikan dist secara static dengan SPA fallback
+- [x] Memvalidasi root domain tidak lagi mengembalikan Cannot GET / dan menyimpan checkpoint hosting
