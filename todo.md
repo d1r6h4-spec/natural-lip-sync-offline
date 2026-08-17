@@ -181,3 +181,9 @@
 - [x] Mengaudit scripts/load-env.js dan sintaks module saat ini
 - [x] Mengonversi seluruh import load-env.js ke require CommonJS
 - [x] Memvalidasi loader, commit, push, dan verifikasi branch main
+
+- [x] Mengaudit seluruh referensi com.arthenica di codebase project
+- [x] Mengganti com.arthenica ke dev.ffmpegkit-maintained dan versi 6.0.3
+- [x] Memastikan mavenCentral() dan repositories Maven terkonfigurasi benar
+- [x] Commit dan push migrasi FFmpeg Kit ke branch main GitHub
+
