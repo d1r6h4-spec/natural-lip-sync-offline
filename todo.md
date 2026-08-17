@@ -112,3 +112,25 @@
 - [x] Menambahkan regression test untuk key dengan spasi, tab, dan newline
 - [x] Menaikkan versi aplikasi menjadi 1.1.4 di app.config.ts, package.json, dan footer Settings
 - [x] Menjalankan validasi JSON error contract dan test lengkap v1.1.4 lalu menyimpan checkpoint siap Android build
+
+- [x] Audit kelayakan Wav2Lip & TFLite ML Kit on-device rendering di Expo SDK 54 / React Native
+- [x] Menghapus total seluruh kode, router, secret, dan fetch ke Sync Labs (`api.sync.so`)
+- [x] Mengganti backend render eksternal dengan pipeline render lokal / offline yang berjalan 100% di HP
+- [x] Menghapus seluruh cek kredit, billing, dan manajemen API key dari Settings dan UI
+- [x] Mengganti indikator `SYNC-3 READY` menjadi `OFFLINE READY` berwarna hijau
+- [x] Menaikkan versi aplikasi menjadi `2.0.0 FREE - Offline Edition` di app.config.ts, package.json, dan Settings footer
+- [x] Memvalidasi zero-API call, test suite, TypeScript, lint, dan siap build Android APK
+
+- [x] Menghapus SYNC_API_KEY dari env, secrets usage, dan dependency provider
+- [x] Menghapus route backend upload/create/status/cancel yang terhubung ke Sync Labs
+- [x] Mengganti Start natural sync dengan pipeline lokal tanpa network request
+- [x] Menampilkan OFFLINE READY hijau pada Home dan Settings serta menghapus provider settings
+- [x] Mempertahankan trim audio, motion intensity, preview, draft, dan export pada alur lokal
+- [x] Menambahkan config plugin ONNX Runtime dan memvalidasi prebuild Android offline
+- [x] Menambahkan ekstensi .onnx ke Metro assetExts agar model offline dapat dibundel
+- [ ] Menyimpan checkpoint v2.0 setelah optimasi model float16 dan perbaikan Metro asset resolver
+- [ ] Menghasilkan model Wav2Lip int8 tervalidasi jika batas checkpoint menolak model float16
+- [ ] Mengunduh `wav2lip_fp16.onnx` dari URL Hugging Face pengguna, memverifikasi checksum/graph/inference, dan mengganti asset model v2.0 bila valid
+- [ ] Mencoba unduh dari GitHub Release dan camenduru Hugging Face; menyiapkan fallback build-safe bila keduanya gagal agar APK v2.0 tetap dapat dibuild tanpa upload manual
+
+- [x] Migrasi ke Natural Lip-Sync v2.0 FREE OFFLINE EDITION (menghapus Sync Labs total, indikator OFFLINE READY hijau, zero network call, fallback build-safe tanpa model besar untuk menghindari HTTP 413, versi 2.0.0)

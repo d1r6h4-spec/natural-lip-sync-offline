@@ -3,7 +3,6 @@ import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, ScrollView
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system/legacy";
 import {
   RecordingPresets,
   requestRecordingPermissionsAsync,
@@ -20,10 +19,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
 import { BUILTIN_AUDIO_TRACKS, type AudioTrack } from "@/constants/audioLibrary";
-import { trpc } from "@/lib/trpc";
-import { friendlyLipSyncError, isProviderCreditError } from "@/lib/lipsync-error";
 import { saveDraft, getDrafts, deleteDraft, type LipSyncDraft } from "@/lib/drafts";
-import { getProviderSettings } from "@/lib/provider-settings";
 
 type SourceMedia = {
   uri: string;
@@ -36,28 +32,6 @@ type AudioSource = {
   name: string;
   duration?: number;
 };
-
-type PreparedMedia =
-  | { key: string; url?: never }
-  | { key?: never; url: string };
-
-function contentTypeFor(nameOrUri: string, fallback: "image" | "video" | "audio") {
-  const extension = nameOrUri.split("?")[0].split(".").pop()?.toLowerCase();
-  const map: Record<string, string> = {
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png",
-    webp: "image/webp",
-    mp4: "video/mp4",
-    mov: "video/quicktime",
-    mp3: "audio/mpeg",
-    m4a: "audio/mp4",
-    wav: "audio/wav",
-    aac: "audio/aac",
-    ogg: "audio/ogg",
-  };
-  return map[extension ?? ""] ?? (fallback === "image" ? "image/jpeg" : fallback === "video" ? "video/mp4" : "audio/mpeg");
-}
 
 const stylesList = [
   { key: "Natural", label: "Natural", description: "Soft, human timing" },
@@ -84,8 +58,6 @@ export default function CreateScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [draftsModalOpen, setDraftsModalOpen] = useState(false);
   const [draftsList, setDraftsList] = useState<LipSyncDraft[]>([]);
-  const prepareUploadMutation = trpc.lipsync.prepareUpload.useMutation();
-  const createJobMutation = trpc.lipsync.create.useMutation();
   const audioPlayer = useAudioPlayer(audio?.uri ?? null);
   const audioStatus = useAudioPlayerStatus(audioPlayer);
 
@@ -256,22 +228,6 @@ export default function CreateScreen() {
     recorder.record();
   };
 
-  const uploadLocalMedia = async (uri: string, fileName: string, mediaType: "image" | "video" | "audio"): Promise<PreparedMedia> => {
-    if (/^https?:\/\//i.test(uri)) return { url: uri };
-
-    const contentType = contentTypeFor(fileName || uri, mediaType);
-    const prepared = await prepareUploadMutation.mutateAsync({ fileName, contentType, mediaType });
-    const uploadResult = await FileSystem.uploadAsync(prepared.uploadUrl, uri, {
-      httpMethod: "PUT",
-      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-      headers: { "Content-Type": contentType },
-    });
-    if (uploadResult.status < 200 || uploadResult.status >= 300) {
-      throw new Error(`Media upload failed (${uploadResult.status})`);
-    }
-    return { key: prepared.key };
-  };
-
   const startGeneration = async () => {
     if (!media) {
       Alert.alert("Add a face source", "Choose a photo or video before starting the lip-sync.");
@@ -288,53 +244,27 @@ export default function CreateScreen() {
 
     setIsSubmitting(true);
     try {
-      const providerSettings = await getProviderSettings();
-      const sourceMedia = await uploadLocalMedia(media.uri, media.fileName ?? `face-source.${media.type === "image" ? "jpg" : "mp4"}`, media.type);
-      const audioMedia = await uploadLocalMedia(audio.uri, audio.name || "voice-track.m4a", "audio");
-      const motionMedia = motionSource
-        ? await uploadLocalMedia(motionSource.uri, motionSource.fileName ?? "motion-reference.mp4", "video")
-        : null;
-      const job = await createJobMutation.mutateAsync({
-        ...(sourceMedia.key ? { sourceKey: sourceMedia.key } : { sourceUrl: sourceMedia.url }),
-        ...(audioMedia.key ? { audioKey: audioMedia.key } : { audioUrl: audioMedia.url }),
-        ...(motionMedia ? (motionMedia.key ? { motionKey: motionMedia.key } : { motionUrl: motionMedia.url }) : {}),
-        sourceType: media.type,
-        style,
-        intensity,
-        trimStart,
-        trimEnd,
-        videoTrimStart,
-        videoTrimEnd,
-        motionWeight,
-        provider: providerSettings.provider,
-      });
-
       router.push({
         pathname: "/processing",
-          params: {
-            jobId: job.jobId,
-            sourceUri: media.uri,
-            sourceType: media.type,
-            audioUri: audio.uri,
-            audioName: audio.name,
-            motionUri: motionSource?.uri,
-            motionName: motionSource?.fileName,
-            style,
-            intensity,
-            trimStart: String(trimStart),
-            trimEnd: String(trimEnd),
-            videoTrimStart: String(videoTrimStart),
-            videoTrimEnd: String(videoTrimEnd),
-            motionWeight,
-            audioDuration: String(audioDuration),
-          },
+        params: {
+          sourceUri: media.uri,
+          sourceType: media.type,
+          audioUri: audio.uri,
+          audioName: audio.name,
+          motionUri: motionSource?.uri,
+          motionName: motionSource?.fileName,
+          style,
+          intensity,
+          trimStart: String(trimStart),
+          trimEnd: String(trimEnd),
+          videoTrimStart: String(videoTrimStart),
+          videoTrimEnd: String(videoTrimEnd),
+          motionWeight,
+          audioDuration: String(audioDuration),
+        },
       });
     } catch (error) {
-      Alert.alert(
-        isProviderCreditError(error) ? "Provider Credit Required" : "Could not start render",
-        friendlyLipSyncError(error),
-      );
-    } finally {
+      Alert.alert("Could not start offline render", error instanceof Error ? error.message : "Please try again.");
       setIsSubmitting(false);
     }
   };
@@ -477,7 +407,7 @@ export default function CreateScreen() {
           </Pressable>
           <Pressable onPress={startGeneration} disabled={isSubmitting} style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.primary, flex: 1 }, pressed && { transform: [{ scale: 0.98 }], opacity: 0.88 }, isSubmitting && { opacity: 0.65 }]}>
             {isSubmitting ? <ActivityIndicator size="small" color="#fff" /> : <IconSymbol name="sparkles" size={19} color="#fff" />}
-            <Text style={styles.primaryButtonText}>{isSubmitting ? "Uploading & rendering…" : "Start natural sync"}</Text>
+            <Text style={styles.primaryButtonText}>{isSubmitting ? "Opening offline renderer…" : "Start natural sync"}</Text>
           </Pressable>
         </View>
 
@@ -513,7 +443,7 @@ export default function CreateScreen() {
             </View>
           </View>
         </Modal>
-        <Text style={[styles.privacy, { color: colors.muted }]}>Your media is uploaded securely for AI rendering and removed according to the provider&apos;s retention policy.</Text>
+        <Text style={[styles.privacy, { color: colors.muted }]}>Your media stays on this device. Offline Wav2Lip rendering does not upload files or call an external API.</Text>
       </ScrollView>
       <Modal visible={libraryOpen} transparent animationType="slide" onRequestClose={() => setLibraryOpen(false)}>
         <View style={styles.modalBackdrop}>

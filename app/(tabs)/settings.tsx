@@ -5,7 +5,6 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { getProviderSettings, saveProviderSettings, type RenderProvider } from "@/lib/provider-settings";
 
 const SETTINGS_KEY = "natural-lipsync-settings";
 
@@ -13,14 +12,12 @@ type Settings = {
   quality: "720p" | "1080p";
   defaultStyle: "Natural" | "Expressive" | "Calm";
   autoSave: boolean;
-  provider: RenderProvider;
 };
 
 const defaultSettings: Settings = {
   quality: "1080p",
   defaultStyle: "Natural",
   autoSave: true,
-  provider: "sync",
 };
 
 export default function SettingsScreen() {
@@ -28,10 +25,7 @@ export default function SettingsScreen() {
   const [settings, setSettings] = useState<Settings>(defaultSettings);
 
   useEffect(() => {
-    void Promise.all([
-      AsyncStorage.getItem(SETTINGS_KEY),
-      getProviderSettings(),
-    ]).then(([stored, providerSettings]) => {
+    void AsyncStorage.getItem(SETTINGS_KEY).then((stored) => {
       let general = {};
       if (stored) {
         try {
@@ -40,7 +34,7 @@ export default function SettingsScreen() {
           general = {};
         }
       }
-      setSettings({ ...defaultSettings, ...general, ...providerSettings });
+      setSettings({ ...defaultSettings, ...general });
     });
   }, []);
 
@@ -48,7 +42,6 @@ export default function SettingsScreen() {
     const next = { ...settings, ...patch };
     setSettings(next);
     void AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify({ quality: next.quality, defaultStyle: next.defaultStyle, autoSave: next.autoSave }));
-    void saveProviderSettings();
   };
 
   const clearHistory = () => {
@@ -116,13 +109,13 @@ export default function SettingsScreen() {
           ))}
         </View>
 
-        <Text style={[styles.sectionTitle, { color: colors.muted }]}>RENDER SERVICE</Text>
+        <Text style={[styles.sectionTitle, { color: colors.muted }]}>RENDER ENGINE</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
-          <Text style={[styles.rowTitle, { color: colors.foreground }]}>Sync Labs</Text>
-          <Text style={[styles.helper, { color: colors.muted }]}>Production renders use Sync Labs sync-3. The backend reads SYNC_API_KEY from project secrets; no API key is stored or transmitted from this device.</Text>
+          <Text style={[styles.rowTitle, { color: colors.foreground }]}>Free Offline Edition</Text>
+          <Text style={[styles.helper, { color: colors.muted }]}>Wav2Lip, face detection, audio processing, and MP4 export run locally on this device. No internet connection or account is required.</Text>
           <View style={[styles.statusPill, { backgroundColor: `${colors.success}18` }]}>
             <View style={[styles.statusDot, { backgroundColor: colors.success }]} />
-            <Text style={[styles.statusText, { color: colors.success }]}>SYNC-3 READY</Text>
+            <Text style={[styles.statusText, { color: colors.success }]}>OFFLINE READY</Text>
           </View>
         </View>
 
@@ -141,7 +134,7 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
-        <Text style={[styles.footer, { color: colors.muted }]}>Natural Lip-Sync · v1.1.4</Text>
+        <Text style={[styles.footer, { color: colors.muted }]}>Natural Lip-Sync · v2.0.0 FREE · Offline Edition</Text>
       </ScrollView>
     </ScreenContainer>
   );

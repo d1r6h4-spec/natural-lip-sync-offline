@@ -90,7 +90,7 @@ export default function HomeScreen() {
             <View style={[styles.hero, { backgroundColor: colors.primary }]}>
               <View style={styles.heroGlow} />
               <View style={styles.heroContent}>
-                <View style={styles.heroPill}><View style={styles.liveDot} /><Text style={styles.heroPillText}>AUDIO READY</Text></View>
+                <View style={styles.heroPill}><View style={styles.liveDot} /><Text style={styles.heroPillText}>OFFLINE READY</Text></View>
                 <Text style={styles.heroTitle}>Give your voice a face.</Text>
                 <Text style={styles.heroSubtitle}>Turn a portrait and any voice track into a soft, natural performance.</Text>
                 <Pressable onPress={() => router.push("/create")} style={({ pressed }) => [styles.heroButton, pressed && { transform: [{ scale: 0.98 }], opacity: 0.9 }]}>
@@ -103,7 +103,7 @@ export default function HomeScreen() {
 
             <View style={styles.quickRow}>
               <View style={[styles.quickCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><IconSymbol name="mic.fill" size={19} color={colors.primary} /><Text style={[styles.quickTitle, { color: colors.foreground }]}>Audio support</Text><Text style={[styles.quickCaption, { color: colors.muted }]}>Upload or record</Text></View>
-              <View style={[styles.quickCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><IconSymbol name="sparkles" size={19} color={colors.primary} /><Text style={[styles.quickTitle, { color: colors.foreground }]}>Natural motion</Text><Text style={[styles.quickCaption, { color: colors.muted }]}>3 expression profiles</Text></View>
+              <View style={[styles.quickCard, { backgroundColor: colors.surface, borderColor: colors.border }]}><IconSymbol name="sparkles" size={19} color={colors.primary} /><Text style={[styles.quickTitle, { color: colors.foreground }]}>Offline render</Text><Text style={[styles.quickCaption, { color: colors.muted }]}>Runs on this device</Text></View>
             </View>
 
             <View style={styles.historyHeader}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Your projects</Text><Text style={[styles.historyCount, { color: colors.muted }]}>{projects.length} saved</Text></View>

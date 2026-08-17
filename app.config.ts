@@ -28,7 +28,7 @@ const schemeFromBundleId = `manus${timestamp}`;
 
 const env = {
   // App branding - update these values directly (do not use env vars)
-  appName: "Natural Lip-Sync",
+  appName: "Natural Lip-Sync Free Offline",
   appSlug: "natural-lipsync-app",
   // Generated app icon asset reserved for the project lifecycle.
   logoUrl: "/manus-storage/natural-lipsync-icon_cd411502.png",
@@ -40,7 +40,7 @@ const env = {
 const config: ExpoConfig = {
   name: env.appName,
   slug: env.appSlug,
-  version: "1.1.4",
+  version: "2.0.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: env.scheme,
@@ -85,6 +85,7 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    "onnxruntime-react-native",
     [
       "expo-audio",
       {
