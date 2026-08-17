@@ -197,6 +197,13 @@
 - [x] Memastikan modul ffmpeg-kit-react-native menggunakan dev.ffmpegkit-maintained
 - [x] Commit dan push Build #7 fix ke branch main GitHub
 
+- [x] Mengaudit struktur repository GitHub target dan file pubspec.yaml
+- [x] Mengganti ffmpeg_kit_flutter ke ffmpeg_kit_flutter_new ^2.0.0 di pubspec.yaml
+- [x] Mengubah import Dart dari ffmpeg_kit_flutter ke ffmpeg_kit_flutter_new di lib/
+- [x] Membersihkan patch workflow React Native dan resolutionStrategy Gradle lama
+- [x] Menjalankan flutter clean && flutter pub get serta push ke main
+
+
 
 - [x] Mengaudit konfigurasi Gradle root dan app module untuk resolusi FFmpeg
 - [x] Menerapkan resolutionStrategy pada subprojects/allprojects di android/build.gradle
