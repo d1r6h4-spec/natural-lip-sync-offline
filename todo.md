@@ -168,3 +168,8 @@
 - [x] Menonaktifkan backend service publishing untuk aplikasi OFFLINE FREE
 - [x] Mengonfigurasi EAS Preview dengan distribution internal untuk APK-only
 - [x] Memvalidasi konfigurasi Android dan menyimpan checkpoint build APK-only
+
+- [x] Memeriksa status git, remote, dan potensi secret sebelum push GitHub
+- [x] Membuat .github/workflows/build-apk.yml sesuai workflow build APK
+- [x] Commit project ke branch main dan push ke repository GitHub target
+- [x] Memverifikasi remote, branch, dan workflow setelah push
