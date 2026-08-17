@@ -187,3 +187,9 @@
 - [x] Memastikan mavenCentral() dan repositories Maven terkonfigurasi benar
 - [x] Commit dan push migrasi FFmpeg Kit ke branch main GitHub
 
+- [x] Mengaudit struktur project (mengecek apakah ini project Expo/React Native atau Flutter)
+- [x] Menambahkan resolutionStrategy di android/build.gradle untuk meredirect com.arthenica ke dev.ffmpegkit-maintained v6.0.3 secara global
+- [x] Memastikan mavenCentral() dan repositories Maven terkonfigurasi benar
+- [x] Commit dan push perbaikan resolution strategy FFmpeg ke branch main GitHub
+
+
