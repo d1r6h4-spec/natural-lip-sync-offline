@@ -1,3 +1,7 @@
+export function normalizeSyncApiKey(value: string | undefined | null): string {
+  return String(value ?? "").replace(/\s+/g, "");
+}
+
 export const ENV = {
   appId: process.env.VITE_APP_ID ?? "",
   cookieSecret: process.env.JWT_SECRET ?? "",
@@ -7,5 +11,5 @@ export const ENV = {
   isProduction: process.env.NODE_ENV === "production",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
-  syncApiKey: process.env.SYNC_API_KEY?.trim() ?? "",
+  syncApiKey: normalizeSyncApiKey(process.env.SYNC_API_KEY),
 };

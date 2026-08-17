@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import { normalizeSyncApiKey } from "../server/_core/env";
 import { buildSyncGenerationInput } from "../server/lipsync";
 
 describe("Sync Labs provider payload", () => {
+  it("removes all whitespace from a dirty Sync Labs API key", () => {
+    expect(normalizeSyncApiKey("  sk-test-\nkey\twith spaces  ")).toBe("sk-test-keywithspaces");
+    expect(normalizeSyncApiKey("\r\n\tsk-clean\n")).toBe("sk-clean");
+  });
+
   it("builds an image plus audio sync-3 generation request", () => {
     const payload = buildSyncGenerationInput(
       {

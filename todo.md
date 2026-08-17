@@ -107,3 +107,8 @@
 - [x] Memverifikasi konfigurasi SYNC_API_KEY baru secara server-side tanpa mengekspos nilainya
 - [x] Menaikkan versi aplikasi menjadi 1.1.3 di app.config.ts, package.json, dan footer Settings
 - [x] Menjalankan validasi akhir v1.1.3 dan menyimpan checkpoint siap Android APK build
+
+- [x] Menormalisasi SYNC_API_KEY dengan menghapus seluruh whitespace dan newline sebelum request provider
+- [x] Menambahkan regression test untuk key dengan spasi, tab, dan newline
+- [x] Menaikkan versi aplikasi menjadi 1.1.4 di app.config.ts, package.json, dan footer Settings
+- [x] Menjalankan validasi JSON error contract dan test lengkap v1.1.4 lalu menyimpan checkpoint siap Android build

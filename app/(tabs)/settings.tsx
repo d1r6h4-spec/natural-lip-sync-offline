@@ -141,7 +141,7 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
-        <Text style={[styles.footer, { color: colors.muted }]}>Natural Lip-Sync · v1.1.3</Text>
+        <Text style={[styles.footer, { color: colors.muted }]}>Natural Lip-Sync · v1.1.4</Text>
       </ScrollView>
     </ScreenContainer>
   );

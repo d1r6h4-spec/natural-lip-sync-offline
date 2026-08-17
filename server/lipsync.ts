@@ -8,7 +8,7 @@ import ffprobeStatic from "ffprobe-static";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 
-import { ENV } from "./_core/env";
+import { ENV, normalizeSyncApiKey } from "./_core/env";
 import { storageCreateUploadUrl, storageGetSignedUrl, storagePut } from "./storage";
 
 const SYNC_API = "https://api.sync.so/v2";
@@ -64,12 +64,13 @@ function absoluteStorageUrl(origin: string, key: string) {
 }
 
 async function syncFetch(path: string, apiKey: string, init?: RequestInit) {
+  const normalizedApiKey = normalizeSyncApiKey(apiKey);
   const response = await fetch(`${SYNC_API}${path}`, {
     ...init,
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "x-api-key": apiKey,
+      "x-api-key": normalizedApiKey,
       ...(init?.headers ?? {}),
     },
   });
