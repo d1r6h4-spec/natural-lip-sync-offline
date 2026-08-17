@@ -203,6 +203,12 @@
 - [x] Membersihkan patch workflow React Native dan resolutionStrategy Gradle lama
 - [x] Menjalankan flutter clean && flutter pub get serta push ke main
 
+- [x] Mengaudit AndroidManifest, MainActivity, dan struktur android/ pada repository
+- [x] Menerapkan Flutter embedding v2 pada AndroidManifest.xml dan MainActivity.kt
+- [x] Memastikan namespace dan applicationId terkonfigurasi benar di android/app/build.gradle
+- [x] Commit dan push Build #9 FINAL fix migrasi embedding ke branch main GitHub
+
+
 
 
 - [x] Mengaudit konfigurasi Gradle root dan app module untuk resolusi FFmpeg
