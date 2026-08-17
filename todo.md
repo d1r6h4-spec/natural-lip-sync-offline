@@ -247,3 +247,11 @@
 - [x] Build #12: Mengambil dan memvalidasi APK untuk distribusi publik
 - [x] Build #12: Membuat GitHub Release publik `v1.0.0-build12` dengan APK terlampir
 - [x] Build #12: Memverifikasi URL unduhan langsung release
+
+- [x] Build #13: Audit kode Flutter Build #12 dan amankan checkpoint rollback
+- [x] Build #13: Implementasi pemilih video dan audio berbasis file_picker
+- [x] Build #13: Implementasi pipeline FFmpeg offline untuk mux video dan audio
+- [x] Build #13: Tambahkan status proses dan preview video hasil
+- [x] Build #13: Validasi analyzer, dependency, dan Android release build
+- [ ] Build #13: Buat Release publik `v1.0.0-build13` dengan APK terlampir
+- [ ] Build #13: Verifikasi URL download langsung APK
