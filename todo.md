@@ -152,3 +152,10 @@
 - [x] Tidak membuat APK baru sebelum preview dan E2E berhasil
 
 - [x] Menstabilkan react-native-css-interop web.css cache dan Metro watchFolders agar clean preview tidak gagal SHA-1
+
+- [x] Mengamankan kondisi project dan mencatat kegagalan EAS Android terbaru
+- [x] Membaca log lengkap fase Run gradlew dan mengisolasi error Gradle pertama
+- [x] Mengaudit dependency native, autolinking, Expo/Android, Kotlin, Gradle, dan AGP compatibility
+- [x] Memperbaiki hanya akar masalah build dengan perubahan minimal
+- [x] Menjalankan clean Android build sampai selesai tanpa mengubah fitur offline dan alur Natural Lip-Sync
+- [x] Menyimpan checkpoint perbaikan build Android dan melaporkan hasilnya
