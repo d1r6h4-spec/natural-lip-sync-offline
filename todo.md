@@ -163,3 +163,8 @@
 - [x] Memastikan Expo web export menghasilkan dist/index.html untuk hosting
 - [x] Mengubah hosting production agar menyajikan dist secara static dengan SPA fallback
 - [x] Memvalidasi root domain tidak lagi mengembalikan Cannot GET / dan menyimpan checkpoint hosting
+
+- [x] Membatalkan proses Android build yang macet pada 1%
+- [x] Menonaktifkan backend service publishing untuk aplikasi OFFLINE FREE
+- [x] Mengonfigurasi EAS Preview dengan distribution internal untuk APK-only
+- [x] Memvalidasi konfigurasi Android dan menyimpan checkpoint build APK-only
