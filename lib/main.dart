@@ -3,9 +3,14 @@ import 'dart:io';
 import 'package:ffmpeg_kit_flutter_new/ffmpeg_kit.dart';
 import 'package:ffmpeg_kit_flutter_new/return_code.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:gal/gal.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
+
+const _storageChannel = MethodChannel('natural_lip_sync/storage');
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -52,6 +57,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _status = 'Pilih video dan audio untuk mulai.';
   String? _error;
   bool _isProcessing = false;
+  bool _isPublishing = false;
   VideoPlayerController? _previewController;
 
   @override
@@ -157,10 +163,11 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         setState(() {
           _outputPath = outputPath;
-          _status = 'Lip-sync selesai. Video hasil siap diputar offline.';
+          _status = 'Lip-sync selesai. Menyimpan video ke galeri dan Download...';
         });
       }
       await _loadPreview(outputPath);
+      await _publishOutput(outputPath, automatic: true);
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -172,6 +179,100 @@ class _HomeScreenState extends State<HomeScreen> {
       if (mounted) {
         setState(() => _isProcessing = false);
       }
+    }
+  }
+
+  Future<void> _publishOutput(String path, {bool automatic = false}) async {
+    if (!mounted) return;
+    setState(() => _isPublishing = true);
+
+    final completed = <String>[];
+    final warnings = <String>[];
+    final fileName = _fileName(path);
+
+    try {
+      try {
+        await Gal.putVideo(path, album: 'NaturalLipSync');
+        completed.add('Galeri/NaturalLipSync');
+      } on GalException catch (error) {
+        warnings.add('Galeri: ${error.type.message}');
+      } catch (error) {
+        warnings.add('Galeri: $error');
+      }
+
+      if (Platform.isAndroid) {
+        try {
+          final publicPath = await _storageChannel.invokeMethod<String>(
+            'copyToDownload',
+            <String, dynamic>{'sourcePath': path, 'displayName': fileName},
+          );
+          if (publicPath != null && publicPath.isNotEmpty) {
+            completed.add('Download');
+          }
+        } on PlatformException catch (error) {
+          warnings.add('Download: ${error.message ?? error.code}');
+        } catch (error) {
+          warnings.add('Download: $error');
+        }
+      }
+
+      if (!mounted) return;
+      final prefix = automatic ? 'Otomatis tersimpan' : 'Video tersimpan';
+      setState(() {
+        _status = warnings.isEmpty
+            ? '$prefix di galeri dan folder Download.'
+            : '$prefix sebagian: ${completed.join(', ')}. ${warnings.join(' ')}';
+      });
+      if (warnings.isNotEmpty) {
+        _showError(warnings.join(' '));
+      }
+    } finally {
+      if (mounted) setState(() => _isPublishing = false);
+    }
+  }
+
+  Future<void> _saveToGallery() async {
+    final path = _outputPath;
+    if (path == null || _isPublishing) return;
+    if (mounted) setState(() => _isPublishing = true);
+    try {
+      await Gal.putVideo(path, album: 'NaturalLipSync');
+      if (mounted) {
+        setState(() => _status = 'Video disimpan ke galeri NaturalLipSync.');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Video berhasil disimpan ke galeri.')),
+        );
+      }
+    } on GalException catch (error) {
+      _showError('Tidak dapat menyimpan ke galeri: ${error.type.message}');
+    } catch (error) {
+      _showError('Tidak dapat menyimpan ke galeri: $error');
+    } finally {
+      if (mounted) setState(() => _isPublishing = false);
+    }
+  }
+
+  Future<void> _shareOutput(String target) async {
+    final path = _outputPath;
+    if (path == null || _isPublishing) return;
+    try {
+      final result = await SharePlus.instance.share(
+        ShareParams(
+          title: 'Natural Lip-Sync',
+          text: 'Video hasil lip-sync offline untuk $target.',
+          files: [XFile(path, mimeType: 'video/mp4')],
+        ),
+      );
+      if (!mounted) return;
+      if (result.status == ShareResultStatus.success) {
+        setState(() => _status = 'Share sheet $target berhasil dibuka.');
+      } else if (result.status == ShareResultStatus.dismissed) {
+        setState(() => _status = 'Share sheet ditutup tanpa mengirim video.');
+      } else {
+        setState(() => _status = 'Share sheet tidak tersedia di perangkat ini.');
+      }
+    } catch (error) {
+      _showError('Gagal membuka share sheet untuk $target: $error');
     }
   }
 
@@ -319,6 +420,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Center(child: CircularProgressIndicator()),
                     ),
                   ),
+                const SizedBox(height: 14),
+                _outputActions(),
                 const SizedBox(height: 8),
                 Text(
                   'Tersimpan offline di folder aplikasi.\n${_fileName(_outputPath)}',
@@ -458,6 +561,58 @@ class _HomeScreenState extends State<HomeScreen> {
           style: const TextStyle(color: Color(0xFF9A2828), height: 1.3),
         ),
       ),
+    );
+  }
+
+  Widget _outputActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FilledButton.icon(
+          onPressed: _isPublishing ? null : _saveToGallery,
+          icon: _isPublishing
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.download_rounded),
+          label: Text(_isPublishing ? 'MENYIMPAN...' : 'SIMPAN KE GALERI'),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(56),
+            backgroundColor: const Color(0xFF1B9A63),
+            foregroundColor: Colors.white,
+            textStyle: const TextStyle(fontWeight: FontWeight.w800),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          ),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: _isPublishing ? null : () => _shareOutput('TikTok'),
+          icon: const Icon(Icons.music_video_rounded),
+          label: const Text('BAGIKAN KE TIKTOK'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(54),
+            foregroundColor: Colors.black87,
+            side: const BorderSide(color: Colors.black87, width: 1.4),
+            textStyle: const TextStyle(fontWeight: FontWeight.w800),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          ),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: _isPublishing ? null : () => _shareOutput('WhatsApp'),
+          icon: const Icon(Icons.chat_rounded),
+          label: const Text('BAGIKAN KE WHATSAPP'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(54),
+            foregroundColor: const Color(0xFF168C4A),
+            side: const BorderSide(color: Color(0xFF168C4A), width: 1.4),
+            textStyle: const TextStyle(fontWeight: FontWeight.w800),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          ),
+        ),
+      ],
     );
   }
 

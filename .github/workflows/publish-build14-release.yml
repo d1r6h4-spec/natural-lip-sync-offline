@@ -1,0 +1,57 @@
+name: Publish Build #14 Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag
+        required: true
+        default: v1.0.0-build14
+      source_sha:
+        description: Commit SHA used for Build #14
+        required: true
+        default: main
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Build #14 source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Analyze Flutter source
+        run: flutter analyze lib/main.dart
+
+      - name: Build release APK
+        run: flutter build apk --release
+
+      - name: Publish public GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          target_commitish: ${{ inputs.source_sha }}
+          name: Natural Lip-Sync ${{ inputs.tag }}
+          body: |
+            Natural Lip-Sync Offline Edition — Build #14.
+
+            This release includes gallery export to the NaturalLipSync album through gal, a public Download/NaturalLipSync copy through Android MediaStore, and large share actions for TikTok and WhatsApp using share_plus. FFmpeg rendering remains fully offline; no cloud API or network upload is used by the lip-sync flow.
+          files: build/app/outputs/flutter-apk/app-release.apk
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

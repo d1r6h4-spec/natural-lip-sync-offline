@@ -253,5 +253,13 @@
 - [x] Build #13: Implementasi pipeline FFmpeg offline untuk mux video dan audio
 - [x] Build #13: Tambahkan status proses dan preview video hasil
 - [x] Build #13: Validasi analyzer, dependency, dan Android release build
-- [ ] Build #13: Buat Release publik `v1.0.0-build13` dengan APK terlampir
-- [ ] Build #13: Verifikasi URL download langsung APK
+- [x] Build #13: Buat Release publik `v1.0.0-build13` dengan APK terlampir
+- [x] Build #13: Verifikasi URL download langsung APK
+
+- [x] Build #14: Audit output Build #13 dan amankan checkpoint rollback
+- [x] Build #14: Tambahkan penyimpanan video ke galeri DCIM/NaturalLipSync
+- [x] Build #14: Salin video hasil ke folder publik Download
+- [x] Build #14: Tambahkan tombol berbagi TikTok dan WhatsApp melalui share_plus
+- [x] Build #14: Validasi permission Android 13+, dependency, dan release build
+- [ ] Build #14: Buat Release publik `v1.0.0-build14` dengan APK terlampir
+- [ ] Build #14: Verifikasi URL download langsung APK
