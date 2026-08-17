@@ -217,10 +217,7 @@
 - [x] Membersihkan AndroidManifest.xml dan build.gradle namespace
 - [x] Commit dan push Fix #10 REAL ke branch main GitHub
 
-- [ ] Mengaudit file Android lama dan struktur package Flutter
-- [ ] Membuat ulang MainActivity.kt dengan FlutterActivity embedding v2
-- [ ] Membersihkan AndroidManifest.xml dan build.gradle namespace
-- [ ] Commit dan push Fix #10 REAL ke branch main GitHub
+
 
 
 
@@ -234,3 +231,10 @@
 
 
 
+
+- [ ] Fix #11: Audit struktur `android/app/src/main` dan semua MainActivity sebelum regenerasi
+- [ ] Fix #11: Amankan checkpoint sebelum menghapus folder Android
+- [ ] Fix #11: Regenerasi folder Android dengan embedding v2 yang sesuai tipe proyek
+- [ ] Fix #11: Validasi MainActivity, AndroidManifest, namespace/applicationId, dan dependency ffmpeg
+- [ ] Fix #11: Jalankan clean dependency checks/build validation tanpa mengubah fitur offline
+- [ ] Fix #11: Commit dan push regenerasi Android ke branch main GitHub
