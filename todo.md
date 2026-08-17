@@ -177,3 +177,7 @@
 - [x] Memeriksa workflow GitHub dan lockfile yang tersedia
 - [x] Menghapus cache npm yang membutuhkan package-lock.json
 - [x] Commit, push, dan verifikasi workflow GitHub terbaru
+
+- [x] Mengaudit scripts/load-env.js dan sintaks module saat ini
+- [x] Mengonversi seluruh import load-env.js ke require CommonJS
+- [x] Memvalidasi loader, commit, push, dan verifikasi branch main
